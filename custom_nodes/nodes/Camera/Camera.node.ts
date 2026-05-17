@@ -28,6 +28,29 @@ export class Camera implements INodeType {
 							request: {
 								method: 'GET',
 								url: 'http://host.docker.internal:8081/get_frame',
+								encoding: 'arraybuffer',
+								returnFullResponse: true,
+							},
+							output: {
+								postReceive: [
+									async function (this, items, responseData) {
+										const binaryData = await this.helpers.prepareBinaryData(
+											responseData.body as Buffer,
+											'frame.jpg',
+											'image/jpeg',
+										);
+										return [
+											{
+												json: {
+													success: true,
+												},
+												binary: {
+													data: binaryData,
+												},
+											},
+										];
+									},
+								],
 							},
 						},
 					},
