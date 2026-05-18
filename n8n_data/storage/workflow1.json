@@ -1,0 +1,128 @@
+{
+  "name": "My workflow 2",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -896,
+        -64
+      ],
+      "id": "0f85b5e8-9924-4989-973b-8d5678761376",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "amount": 1
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -272,
+        -64
+      ],
+      "id": "66f5b04b-c448-49c3-9d8a-c0272beed442",
+      "name": "Wait",
+      "webhookId": "61b38836-6daa-4be7-93df-8fc9eafbbc90"
+    },
+    {
+      "parameters": {
+        "jsCode": "const base_data = {\n    \"position\": {\"x\": -0.1, \"y\": 0.4, \"z\": 0.3},\n    \"orientation\": {\"x\": 0.5, \"y\": 0.5, \"z\": 0.5, \"w\": -0.5}\n};\n\nconst p_delta = 0.05; \nconst o_delta = 0.02;\n\nfunction jitter(val, delta) {\n    return Number((val + (Math.random() * (delta * 2) - delta)).toFixed(4));\n}\n\nconst new_pose = {\n    \"position\": {\n        \"x\": jitter(base_data.position.x, p_delta),\n        \"y\": jitter(base_data.position.y, p_delta),\n        \"z\": jitter(base_data.position.z, p_delta)\n    },\n    \"orientation\": {\n        \"x\": jitter(base_data.orientation.x, o_delta),\n        \"y\": jitter(base_data.orientation.y, o_delta),\n        \"z\": jitter(base_data.orientation.z, o_delta),\n        \"w\": jitter(base_data.orientation.w, o_delta)\n    }\n};\n\nreturn { json: {\"pose\":new_pose} };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -656,
+        -64
+      ],
+      "id": "1d42bcbc-4ac1-4ad8-ba26-84cf33aab1f2",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "requestOptions": {}
+      },
+      "type": "CUSTOM.robot",
+      "typeVersion": 1,
+      "position": [
+        -480,
+        -64
+      ],
+      "id": "a0bd37c0-985c-45b0-b3d6-88062e43bd6d",
+      "name": "Robot"
+    },
+    {
+      "parameters": {
+        "operation": "getPose",
+        "requestOptions": {}
+      },
+      "type": "CUSTOM.camera",
+      "typeVersion": 1,
+      "position": [
+        -480,
+        -256
+      ],
+      "id": "4ef3646c-9ba3-456b-adea-36cc3690ec71",
+      "name": "Camera"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Robot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Robot": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "2968bac1-cf8a-48a8-9273-2a53808f45ea",
+  "meta": {
+    "instanceId": "586af3b0d75e8af824da7b7402e30bf8ccbc3f13123ca719c8093164ee7d19bc"
+  },
+  "id": "pHLxngYS4vUcdpIZ",
+  "tags": []
+}
