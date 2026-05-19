@@ -57,7 +57,7 @@ export class Robot implements INodeType {
 						operation: ['move'],
 					},
 				},
-				default: '{\n  "position": {"x": 0, "y": 0, "z": 0},\n  "orientation": {"x": 0, "y": 0, "z": 0, "w": 1}\n}',
+				default: '{\n  "position": [0, 0, 0],\n  "orientation": [1, 0, 0, 0]\n}',
 				description: 'Inserisci il JSON con position e orientation',
 				required: true,
 			},

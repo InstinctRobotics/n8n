@@ -4,7 +4,7 @@ export class Camera implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Camera',
 		name: 'camera',
-		icon: 'file:camera.png',
+		icon: 'fa:eye',
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"]}}',

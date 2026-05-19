@@ -28,7 +28,8 @@
 		"n8nNodesApiVersion": 1,
 		"nodes": [
 			"nodes/Robot/Robot.node.js",
-			"nodes/Camera/Camera.node.js"
+          "nodes/Camera/Camera.node.js",
+          "nodes/Pose/Pose.node.js"
 		]
 	},
 	"devDependencies": {
