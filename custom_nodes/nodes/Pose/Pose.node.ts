@@ -139,7 +139,7 @@ export class Pose implements INodeType {
 						if (!itemB) {
 							throw new NodeOperationError(
 								this.getNode(),
-								`Second input (Child Pose from Camera) is required but not connected or empty`,
+								`Second input (Child Pose from Vision) is required but not connected or empty`,
 								{ itemIndex: i },
 							);
 						}

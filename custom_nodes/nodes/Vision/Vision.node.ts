@@ -1,16 +1,16 @@
 import { INodeType, INodeTypeDescription } from 'n8n-workflow';
 
-export class Camera implements INodeType {
+export class Vision implements INodeType {
 	description: INodeTypeDescription = {
-		displayName: 'Camera',
-		name: 'camera',
+		displayName: 'Vision',
+		name: 'vision',
 		icon: 'fa:eye',
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"]}}',
-		description: 'Controllo Camera (Get Frame and Get Pose)',
+		description: 'Controllo Vision (Get Frame and Get Pose)',
 		defaults: {
-			name: 'Camera',
+			name: 'Vision',
 		},
 		inputs: ['main'],
 		outputs: ['main'],
@@ -61,6 +61,38 @@ export class Camera implements INodeType {
 							request: {
 								method: 'GET',
 								url: 'http://host.docker.internal:8081/get_pose',
+								returnFullResponse: true,
+							},
+							output: {
+								postReceive: [
+									async function (this, items, responseData) {
+										let body = responseData.body as any;
+										if (Buffer.isBuffer(body)) {
+											body = JSON.parse(body.toString('utf-8'));
+										} else if (typeof body === 'string') {
+											body = JSON.parse(body);
+										}
+
+										const base64Image = body.image;
+										const pose = { ...body };
+										delete pose.image;
+
+										const imageBuffer = Buffer.from(base64Image, 'base64');
+										const binaryData = await this.helpers.prepareBinaryData(
+											imageBuffer,
+											'detected_pose.jpg',
+											'image/jpeg',
+										);
+										return [
+											{
+												json: pose,
+												binary: {
+													data: binaryData,
+												},
+											},
+										];
+									},
+								],
 							},
 						},
 					},
