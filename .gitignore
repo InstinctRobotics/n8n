@@ -1,2 +1,10 @@
+# n8n Personal Data & Database
+n8n_data/
+
+# IDE files
+.idea/
+.vscode/
+
+# Custom nodes compilation and modules
 custom_nodes/dist/
 custom_nodes/node_modules/

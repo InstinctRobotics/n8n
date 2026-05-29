@@ -10,5 +10,8 @@ services:
       - ./n8n_data:/home/node/.n8n
       # Colleghiamo la cartella dei nodi compilati
       - ./custom_nodes/dist:/home/node/.n8n/custom/n8n-nodes-robot-controller
+      # Colleghiamo la cartella dei workflow condivisi
+      - ./workflows:/home/node/workflows
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    command: /bin/sh -c "mkdir -p /home/node/workflows && n8n import:workflow --separate --input=/home/node/workflows || true; n8n start"

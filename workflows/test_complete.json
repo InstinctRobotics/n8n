@@ -1,0 +1,191 @@
+{
+  "name": "test_complete",
+  "nodes": [
+    {
+      "parameters": {
+        "amount": 1
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -48,
+        -64
+      ],
+      "id": "66f5b04b-c448-49c3-9d8a-c0272beed442",
+      "name": "Wait",
+      "webhookId": "61b38836-6daa-4be7-93df-8fc9eafbbc90"
+    },
+    {
+      "parameters": {
+        "operation": "getPose",
+        "linkName": "camera",
+        "requestOptions": {}
+      },
+      "type": "CUSTOM.robot",
+      "typeVersion": 1,
+      "position": [
+        -624,
+        -64
+      ],
+      "id": "a0bd37c0-985c-45b0-b3d6-88062e43bd6d",
+      "name": "Robot"
+    },
+    {
+      "parameters": {
+        "operation": "getPose",
+        "requestOptions": {}
+      },
+      "type": "CUSTOM.camera",
+      "typeVersion": 1,
+      "position": [
+        -624,
+        -240
+      ],
+      "id": "4ef3646c-9ba3-456b-adea-36cc3690ec71",
+      "name": "Camera"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -864,
+        -64
+      ],
+      "id": "e221080c-3554-4a15-aaec-bfacf5fc3d80",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "operation": "chain"
+      },
+      "type": "CUSTOM.pose",
+      "typeVersion": 1,
+      "position": [
+        -432,
+        -128
+      ],
+      "id": "2af4bc37-20e7-4dec-ad77-1f4b9622d47b",
+      "name": "Pose"
+    },
+    {
+      "parameters": {
+        "poseInput": "={{ $json }}",
+        "requestOptions": {}
+      },
+      "type": "CUSTOM.robot",
+      "typeVersion": 1,
+      "position": [
+        -240,
+        -112
+      ],
+      "id": "2b0dfa22-dd15-44dc-a74b-fa2ef225fadf",
+      "name": "Robot1"
+    },
+    {
+      "parameters": {
+        "gripperInput": "{\"position\": 0.01, \"effort\": 50.0}",
+        "requestOptions": {}
+      },
+      "type": "CUSTOM.gripper",
+      "typeVersion": 1,
+      "position": [
+        -256,
+        -256
+      ],
+      "id": "9f447c6c-f6fb-4842-947e-d2b8c64ebfc7",
+      "name": "Gripper"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Robot",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Camera",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Robot": {
+      "main": [
+        [
+          {
+            "node": "Pose",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Camera": {
+      "main": [
+        [
+          {
+            "node": "Pose",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Robot",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Camera",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pose": {
+      "main": [
+        [
+          {
+            "node": "Robot1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Robot1": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "ed0307fe-e855-4137-aec2-43797bea4bbd",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "586af3b0d75e8af824da7b7402e30bf8ccbc3f13123ca719c8093164ee7d19bc"
+  },
+  "id": "pHLxngYS4vUcdpIZ",
+  "tags": []
+}

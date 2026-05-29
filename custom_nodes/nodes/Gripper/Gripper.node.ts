@@ -28,7 +28,13 @@ export class Gripper implements INodeType {
 							request: {
 								method: 'POST',
 								url: 'http://host.docker.internal:8080/gripper',
-								body: '={{$parameter["gripperInput"]}}',
+								body: {
+									position: '={{(typeof $parameter["gripperInput"] === "string" ? JSON.parse($parameter["gripperInput"]) : $parameter["gripperInput"]).position}}',
+									effort: '={{(typeof $parameter["gripperInput"] === "string" ? JSON.parse($parameter["gripperInput"]) : $parameter["gripperInput"]).effort}}',
+								},
+								headers: {
+									'Content-Type': 'application/json',
+								},
 							},
 						},
 					},
