@@ -20,7 +20,7 @@ export class Pose implements INodeType {
 		defaults: {
 			name: 'Pose',
 		},
-		inputs: ['main', 'main'],
+		inputs: '={{ ["chain", "distance"].includes($parameter.operation) ? ["main", "main"] : ["main"] }}' as any,
 		outputs: ['main'],
 		properties: [
 			// ── Operation ────────────────────────────────────────────────
@@ -77,6 +77,14 @@ export class Pose implements INodeType {
 				displayOptions: { show: { operation: ['rotate', 'euler'] } },
 				default: true,
 			},
+			{
+				displayName: 'Rotation Frame',
+				name: 'rotationFrame',
+				type: 'string',
+				displayOptions: { show: { operation: ['rotate'] } },
+				default: '',
+				description: 'Frame around which to rotate (empty = local pose frame)',
+			},
 
 			// ── Translate Parameters ─────────────────────────────────────
 			{
@@ -112,6 +120,14 @@ export class Pose implements INodeType {
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const items = this.getInputData();
+
+		if (!items || items.length === 0 || Object.keys(items[0].json).length === 0) {
+			throw new NodeOperationError(
+				this.getNode(),
+				'No input data received. Please disconnect and reconnect the input wire to this node.',
+			);
+		}
+
 		let itemsB: INodeExecutionData[] = [];
 		try {
 			itemsB = this.getInputData(1);
@@ -160,8 +176,9 @@ export class Pose implements INodeType {
 						}
 						const angle = this.getNodeParameter('angle', i) as number;
 						const degrees = this.getNodeParameter('degrees', i) as boolean;
+						const frame = (this.getNodeParameter('rotationFrame', i, '') as string) || '';
 						url = `${BASE_URL}/rotate`;
-						body = { pose: poseA, axis, angle, degrees };
+						body = { pose: poseA, axis, angle, degrees, frame };
 						break;
 					}
 
