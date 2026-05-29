@@ -1,4 +1,10 @@
-import { INodeType, INodeTypeDescription } from 'n8n-workflow';
+import {
+	IExecuteFunctions,
+	INodeExecutionData,
+	INodeType,
+	INodeTypeDescription,
+	NodeOperationError,
+} from 'n8n-workflow';
 
 export class Robot implements INodeType {
 	description: INodeTypeDescription = {
@@ -24,26 +30,10 @@ export class Robot implements INodeType {
 					{
 						name: 'Move to Pose',
 						value: 'move',
-						routing: {
-							request: {
-								method: 'POST',
-								url: 'http://host.docker.internal:8080/move_to_pose',
-								body: '={{$parameter["poseInput"]}}',
-							},
-						},
 					},
 					{
 						name: 'Get Position',
 						value: 'getPose',
-						routing: {
-							request: {
-								method: 'GET',
-								url: 'http://host.docker.internal:8080/get_pose',
-								qs: {
-									link: '={{$parameter["linkName"]}}',
-								},
-							},
-						},
 					},
 				],
 				default: 'move',
@@ -76,4 +66,73 @@ export class Robot implements INodeType {
 			},
 		],
 	};
+
+	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
+		const items = this.getInputData();
+		const returnData: INodeExecutionData[] = [];
+
+		for (let i = 0; i < items.length; i++) {
+			try {
+				const operation = this.getNodeParameter('operation', i) as string;
+
+				if (operation === 'move') {
+					const poseInputParam = this.getNodeParameter('poseInput', i);
+					let body: object;
+					if (typeof poseInputParam === 'object' && poseInputParam !== null) {
+						body = poseInputParam;
+					} else if (typeof poseInputParam === 'string' && poseInputParam.trim() !== '') {
+						const trimmed = poseInputParam.trim();
+						try {
+							body = JSON.parse(trimmed);
+						} catch (e: any) {
+							throw new Error(`Error in parsing input JSON for 'Robot Pose' (received value: "${trimmed}"): ${e.message}`);
+						}
+					} else {
+						// Fallback automatico dall'input del nodo
+						const inputData = items[i].json as any;
+						if (inputData.Robot && typeof inputData.Robot === 'object') {
+							body = inputData.Robot;
+						} else if (inputData.Pose && typeof inputData.Pose === 'object') {
+							body = inputData.Pose;
+						} else if (inputData.position && inputData.orientation) {
+							body = inputData;
+						} else {
+							throw new Error(`Parameter 'Robot Pose' is empty and no valid object has been found ('Robot', 'Pose', or keys 'position'/'orientation') in input data.`);
+						}
+					}
+
+					const result = await this.helpers.httpRequest({
+						method: 'POST',
+						url: 'http://host.docker.internal:8080/move_to_pose',
+						body,
+						json: true,
+					});
+					returnData.push({ json: result });
+
+				} else if (operation === 'getPose') {
+					const link = this.getNodeParameter('linkName', i) as string;
+					const result = await this.helpers.httpRequest({
+						method: 'GET',
+						url: 'http://host.docker.internal:8080/get_pose',
+						qs: {
+							link,
+						},
+						json: true,
+					});
+					returnData.push({ json: result });
+				}
+			} catch (error: any) {
+				const message = error.response?.data?.detail || error.message || String(error);
+				if (this.continueOnFail()) {
+					returnData.push({
+						json: { error: message },
+					});
+					continue;
+				}
+				throw new NodeOperationError(this.getNode(), message, { itemIndex: i });
+			}
+		}
+
+		return [returnData];
+	}
 }
