@@ -14,4 +14,9 @@ services:
       - ./workflows:/home/node/workflows
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    command: /bin/sh -c "mkdir -p /home/node/workflows && n8n import:workflow --separate --input=/home/node/workflows || true; n8n start"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        mkdir -p /home/node/workflows
+        n8n import:workflow --separate --input=/home/node/workflows || true
+        exec /docker-entrypoint.sh
