@@ -4,8 +4,8 @@ export class Vision implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Vision',
 		name: 'vision',
-		icon: 'fa:eye',
-		group: ['transform'],
+		icon: 'file:camera.svg',
+		group: ['robotics'] as any,
 		version: 1,
 		subtitle: '={{$parameter["operation"]}}',
 		description: 'Controllo Vision (Get Frame and Get Pose)',

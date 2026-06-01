@@ -4,8 +4,8 @@ export class Gripper implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Gripper',
 		name: 'gripper',
-		icon: 'fa:hand',
-		group: ['transform'],
+		icon: 'file:gripper.svg',
+		group: ['robotics'] as any,
 		version: 1,
 		subtitle: '={{$parameter["operation"]}}',
 		description: 'Control robotic gripper (position and effort)',

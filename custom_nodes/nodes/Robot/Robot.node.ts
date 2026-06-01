@@ -10,8 +10,8 @@ export class Robot implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Robot',
 		name: 'robot',
-		icon: 'fa:robot',
-		group: ['transform'],
+		icon: 'file:robotic_arm.svg',
+		group: ['robotics'] as any,
 		version: 1,
 		subtitle: '={{$parameter["operation"]}}',
 		description: 'Controllo Robot (Move and Get Pose)',

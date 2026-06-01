@@ -13,7 +13,7 @@ export class Pose implements INodeType {
 		displayName: 'Pose',
 		name: 'pose',
 		icon: 'fa:cube',
-		group: ['transform'],
+		group: ['robotics'] as any,
 		version: 1,
 		subtitle: '={{$parameter["operation"]}}',
 		description: 'Manipulate 3D poses: chain, rotate, translate, distance, euler',

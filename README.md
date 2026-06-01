@@ -10,6 +10,7 @@ Esistono due modi per avviare l'ambiente: tramite comando Docker diretto o trami
 
 Usa il file `docker-compose.yaml` incluso per gestire n8n e i nodi custom in modo persistente.
 
+#### Lancio n8n ufficiale
 1. Assicurati di aver buildato i nodi custom (vedi sezione sotto).
 2. Imposta i permessi per la cartella dei dati:
    ```bash
@@ -17,7 +18,24 @@ Usa il file `docker-compose.yaml` incluso per gestire n8n e i nodi custom in mod
    ```
 3. Lancia il comando con sudo:
    ```bash
-   sudo docker compose up -d
+   sudo docker compose up -d n8n
+   ```
+
+#### Lancio n8n modificato (Locale)
+Per lanciare la versione modificata di n8n (compilata localmente in `n8n-workflow`):
+1. Compila n8n nella repository `n8n-workflow`:
+   ```bash
+   cd ../n8n-workflow
+   nvm use 22 && pnpm build:n8n
+   ```
+2. Imposta i permessi per la cartella dei dati nella cartella `n8n`:
+   ```bash
+   cd ../n8n
+   sudo chown -R 1000:1000 n8n_data
+   ```
+3. Lancia il servizio `n8n-local`:
+   ```bash
+   sudo docker compose up -d n8n-local
    ```
 
 Il servizio sarà accessibile su `http://localhost:5678`.

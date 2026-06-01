@@ -14,9 +14,24 @@ services:
       - ./workflows:/home/node/workflows
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        mkdir -p /home/node/workflows
-        n8n import:workflow --separate --input=/home/node/workflows || true
-        exec /docker-entrypoint.sh
+    command: /bin/sh -c "mkdir -p /home/node/workflows && n8n import:workflow --separate --input=/home/node/workflows || true; n8n start"
+
+  n8n-local:
+    image: node:22-bookworm
+    restart: always
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_CUSTOM_EXTENSIONS=/home/node/.n8n/custom
+    working_dir: /usr/local/lib/node_modules/n8n
+    volumes:
+      - ../n8n-workflow/compiled:/usr/local/lib/node_modules/n8n
+      - ./n8n_data:/home/node/.n8n
+      # Colleghiamo la cartella dei nodi compilati
+      - ./custom_nodes/dist:/home/node/.n8n/custom/n8n-nodes-robot-controller
+      # Colleghiamo la cartella dei workflow condivisi
+      - ./workflows:/home/node/workflows
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: /bin/sh -c "mkdir -p /home/node/workflows && node bin/n8n import:workflow --separate --input=/home/node/workflows || true; node bin/n8n start"
+
