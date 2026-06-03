@@ -40,15 +40,16 @@ const containerClasses = computed(() => {
 
 const svg = useTemplateRef<{ $el: Element }>('logo');
 onMounted(() => {
+	const logoEl = svg.value!.$el;
+
+	// Use Instinct Robotics brand color
+	const logoColor = '#3C5366';
+	logoEl.setAttribute('style', `color: ${logoColor}`);
+	logoEl.querySelectorAll('path').forEach(path => path.setAttribute('fill', 'currentColor'));
+
 	if (!releaseChannel || releaseChannel === 'stable' || !('createObjectURL' in URL)) {
 		return;
 	}
-
-	const logoEl = svg.value!.$el;
-
-	// Change the logo fill color inline, so that favicon can also use it
-	const logoColor = releaseChannel === 'dev' ? '#838383' : '#E9984B';
-	logoEl.querySelector('path')?.setAttribute('fill', logoColor);
 
 	// Reuse the SVG as favicon
 	const blob = new Blob([logoEl.outerHTML], { type: 'image/svg+xml' });
@@ -73,7 +74,7 @@ onMounted(() => {
 
 .logoText {
 	margin-left: var(--spacing--5xs);
-	path {
+	path, text {
 		fill: var(--color--text--shade-1);
 	}
 }

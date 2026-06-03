@@ -57,6 +57,7 @@ import {
 	SUMMARIZE_NODE_TYPE,
 	TEMPLATE_CATEGORY_AI,
 	TRANSFORM_DATA_SUBCATEGORY,
+	ROBOTICS_SUBCATEGORY,
 	TRIGGER_NODE_CREATOR_VIEW,
 	WEBHOOK_NODE_TYPE,
 	XML_NODE_TYPE,
@@ -629,6 +630,15 @@ export function RegularView(nodes: SimplifiedNodeType[]) {
 			// - add "HITL": ["Human in the Loop"] to the "subcategories" property of the node's codex
 			// node has to have the "sendAndWait" operation, if a new operation needs to be included here:
 			// - update getHumanInTheLoopActions in packages/frontend/editor-ui/src/components/Node/NodeCreator/Modes/NodesMode.vue
+			{
+				type: 'subcategory',
+				key: ROBOTICS_SUBCATEGORY,
+				category: ROBOTICS_SUBCATEGORY,
+				properties: {
+					title: ROBOTICS_SUBCATEGORY,
+					icon: 'robot',
+				},
+			},
 			{
 				type: 'subcategory',
 				key: HITL_SUBCATEGORY,

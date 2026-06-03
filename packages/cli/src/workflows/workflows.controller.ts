@@ -1,3 +1,5 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import {
 	ActivateWorkflowDto,
 	ArchiveWorkflowDto,
@@ -123,6 +125,8 @@ export class WorkflowsController {
 		const scopes = await this.workflowService.getWorkflowScopes(req.user, savedWorkflow.id);
 
 		const checksum = await calculateWorkflowChecksum(savedWorkflow);
+
+		await this.saveWorkflowToFileSystem(savedWorkflow);
 
 		return { ...savedWorkflowWithMetaData, scopes, checksum };
 	}
@@ -342,6 +346,8 @@ export class WorkflowsController {
 		const checksum = await calculateWorkflowChecksum(updatedWorkflow);
 
 		await this.collaborationService.broadcastWorkflowUpdate(workflowId, req.user.id);
+
+		await this.saveWorkflowToFileSystem(updatedWorkflow);
 
 		return { ...updatedWorkflow, scopes, checksum };
 	}
@@ -742,5 +748,35 @@ export class WorkflowsController {
 		}
 
 		return undefined;
+	}
+
+	private async saveWorkflowToFileSystem(workflow: WorkflowEntity) {
+		try {
+			const workflowsDir = '/home/node/workflows';
+			if (fs.existsSync(workflowsDir)) {
+				const sanitizedName = (workflow.name || 'Unnamed_Workflow')
+					.replace(/[^a-z0-9_-]/gi, '_')
+					.substring(0, 100);
+				const fileName = `${sanitizedName}.json`;
+				const filePath = path.join(workflowsDir, fileName);
+
+				const workflowJson = {
+					id: workflow.id,
+					name: workflow.name,
+					active: workflow.active,
+					nodes: workflow.nodes,
+					connections: workflow.connections,
+					settings: workflow.settings,
+					staticData: workflow.staticData,
+					meta: workflow.meta,
+					pinData: workflow.pinData,
+				};
+
+				await fs.promises.writeFile(filePath, JSON.stringify(workflowJson, null, 2), 'utf8');
+				this.logger.debug(`Saved workflow ${workflow.id} to file system: ${filePath}`);
+			}
+		} catch (error) {
+			this.logger.error(`Failed to save workflow ${workflow.id} to file system: ${error.message}`);
+		}
 	}
 }
