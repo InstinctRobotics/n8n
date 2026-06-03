@@ -96,6 +96,34 @@ export class Vision implements INodeType {
 							},
 						},
 					},
+					{
+						name: 'Get Bin',
+						value: 'getBin',
+						routing: {
+							request: {
+								method: 'GET',
+								url: 'http://host.docker.internal:8081/detect_bin',
+								returnFullResponse: true,
+							},
+							output: {
+								postReceive: [
+									async function (this, items, responseData) {
+										let body = responseData.body as any;
+										if (Buffer.isBuffer(body)) {
+											body = JSON.parse(body.toString('utf-8'));
+										} else if (typeof body === 'string') {
+											body = JSON.parse(body);
+										}
+										return [
+											{
+												json: body,
+											},
+										];
+									},
+								],
+							},
+						},
+					},
 				],
 				default: 'getFrame',
 			},

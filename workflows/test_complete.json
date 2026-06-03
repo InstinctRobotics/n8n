@@ -98,16 +98,30 @@
     },
     {
       "parameters": {
-        "poseInput": "{\n  \"parent\": \"world\",\n  \"position\": [0.35, 0.11, 0.0107],\n  \"orientation\": [1, 0, 0, 0]\n}"
+        "poseInput": "={{ $json }}"
       },
       "type": "CUSTOM.mesh",
       "typeVersion": 1,
       "position": [
-        -672,
-        0
+        -512,
+        -16
       ],
       "id": "382bacee-9260-48d0-83ce-0babdc6d64b3",
       "name": "Mesh"
+    },
+    {
+      "parameters": {
+        "operation": "getBin",
+        "requestOptions": {}
+      },
+      "type": "CUSTOM.vision",
+      "typeVersion": 1,
+      "position": [
+        -672,
+        -16
+      ],
+      "id": "ae3f49e8-8bee-4b0a-a9b3-58d01496ce64",
+      "name": "getBin"
     }
   ],
   "connections": {
@@ -169,7 +183,7 @@
             "index": 0
           },
           {
-            "node": "Mesh",
+            "node": "getBin",
             "type": "main",
             "index": 0
           }
@@ -181,6 +195,22 @@
         [
           {
             "node": "Gripper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mesh": {
+      "main": [
+        []
+      ]
+    },
+    "getBin": {
+      "main": [
+        [
+          {
+            "node": "Mesh",
             "type": "main",
             "index": 0
           }
