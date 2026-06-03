@@ -22,10 +22,10 @@ Usa il file `docker-compose.yaml` incluso per gestire n8n e i nodi custom in mod
    ```
 
 #### Lancio n8n modificato (Locale)
-Per lanciare la versione modificata di n8n (compilata localmente in `n8n-workflow`):
-1. Compila n8n nella repository `n8n-workflow`:
+Per lanciare la versione modificata di n8n (compilata localmente in `n8n`):
+1. Compila n8n nella repository `n8n`:
    ```bash
-   cd ../n8n-workflow
+   cd ../n8n
    nvm use 22 && pnpm build:n8n
    ```
 2. Imposta i permessi per la cartella dei dati nella cartella `n8n`:

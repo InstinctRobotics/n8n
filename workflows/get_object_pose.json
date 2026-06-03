@@ -1,0 +1,133 @@
+{
+  "id": "NZPTHrheO8SSIdW3",
+  "name": "get object pose",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "getPose",
+        "linkName": "camera_link"
+      },
+      "type": "CUSTOM.robot",
+      "typeVersion": 1,
+      "position": [
+        -672,
+        304
+      ],
+      "id": "06ef26cc-5e79-4c83-85c6-91ccd494e71e",
+      "name": "Robot"
+    },
+    {
+      "parameters": {
+        "operation": "chain"
+      },
+      "type": "CUSTOM.pose",
+      "typeVersion": 1,
+      "position": [
+        -512,
+        224
+      ],
+      "id": "368d4f7a-71e2-4ad0-9a28-32a9ab09f3f4",
+      "name": "Pose"
+    },
+    {
+      "parameters": {
+        "operation": "rotate"
+      },
+      "type": "CUSTOM.pose",
+      "typeVersion": 1,
+      "position": [
+        -352,
+        224
+      ],
+      "id": "ce6cc2c3-563e-453f-8201-005b1ca41b0f",
+      "name": "Pose1"
+    },
+    {
+      "parameters": {
+        "operation": "getPose",
+        "requestOptions": {}
+      },
+      "type": "CUSTOM.vision",
+      "typeVersion": 1,
+      "position": [
+        -672,
+        144
+      ],
+      "id": "0304ccc1-e8fe-46f3-a3bc-dd9a8d2557ce",
+      "name": "Vision"
+    },
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "1fe813a7-d4c0-4c05-8255-06236da741e9",
+      "typeVersion": 1.1,
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        -848,
+        224
+      ]
+    }
+  ],
+  "connections": {
+    "Robot": {
+      "main": [
+        [
+          {
+            "node": "Pose",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Pose": {
+      "main": [
+        [
+          {
+            "node": "Pose1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vision": {
+      "main": [
+        [
+          {
+            "node": "Pose",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Vision",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Robot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "binaryMode": "separate"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": {}
+}

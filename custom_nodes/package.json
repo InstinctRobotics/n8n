@@ -28,9 +28,10 @@
 		"n8nNodesApiVersion": 1,
 		"nodes": [
 			"nodes/Robot/Robot.node.js",
-          "nodes/Vision/Vision.node.js",
-          "nodes/Pose/Pose.node.js",
-			"nodes/Gripper/Gripper.node.js"
+			"nodes/Vision/Vision.node.js",
+			"nodes/Pose/Pose.node.js",
+			"nodes/Gripper/Gripper.node.js",
+			"nodes/Mesh/Mesh.node.js"
 		]
 	},
 	"devDependencies": {

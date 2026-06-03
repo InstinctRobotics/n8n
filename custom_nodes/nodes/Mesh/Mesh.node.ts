@@ -6,17 +6,17 @@ import {
 	NodeOperationError,
 } from 'n8n-workflow';
 
-export class Robot implements INodeType {
+export class Mesh implements INodeType {
 	description: INodeTypeDescription = {
-		displayName: 'Robot',
-		name: 'robot',
-		icon: 'file:robotic_arm.svg',
+		displayName: 'Mesh',
+		name: 'mesh',
+		icon: 'file:mesh.svg',
 		group: ['robotics'] as any,
 		version: 1,
 		subtitle: '={{$parameter["operation"]}}',
-		description: 'Controllo Robot (Move and Get Pose)',
+		description: 'Import, list and delete meshes in MoveIt',
 		defaults: {
-			name: 'Robot',
+			name: 'Mesh',
 		},
 		inputs: ['main'],
 		outputs: ['main'],
@@ -28,44 +28,44 @@ export class Robot implements INodeType {
 				noDataExpression: true,
 				options: [
 					{
-						name: 'Move to Pose',
-						value: 'move',
+						name: 'Import Mesh',
+						value: 'import',
 					},
 					{
-						name: 'Move Relative',
-						value: 'moveRelative',
+						name: 'Delete All Meshes',
+						value: 'delete',
 					},
 					{
-						name: 'Get Position',
-						value: 'getPose',
+						name: 'Get Loaded Meshes',
+						value: 'get',
 					},
 				],
-				default: 'move',
+				default: 'import',
 			},
 			{
-				displayName: 'Posa del Robot',
+				displayName: 'Object Name',
+				name: 'objectName',
+				type: 'string',
+				displayOptions: {
+					show: {
+						operation: ['import'],
+					},
+				},
+				default: 'bin',
+				description: 'Il nome del file STL (senza .stl) da importare',
+				required: true,
+			},
+			{
+				displayName: 'Posa del Mesh',
 				name: 'poseInput',
 				type: 'json',
 				displayOptions: {
 					show: {
-						operation: ['move', 'moveRelative'],
+						operation: ['import'],
 					},
 				},
-				default: '{\n  "position": [0, 0, 0],\n  "orientation": [1, 0, 0, 0]\n}',
-				description: 'Inserisci il JSON con position e orientation',
-				required: true,
-			},
-			{
-				displayName: 'Link Name',
-				name: 'linkName',
-				type: 'string',
-				displayOptions: {
-					show: {
-						operation: ['getPose'],
-					},
-				},
-				default: 'wrist_3_link',
-				description: 'Il nome del link di cui ottenere la posa',
+				default: '{\n  "parent": "world",\n  "position": [0, 0, 0],\n  "orientation": [1, 0, 0, 0]\n}',
+				description: 'Inserisci il JSON con parent, position e orientation della posa',
 				required: true,
 			},
 		],
@@ -79,49 +79,57 @@ export class Robot implements INodeType {
 			try {
 				const operation = this.getNodeParameter('operation', i) as string;
 
-				if (operation === 'move' || operation === 'moveRelative') {
+				if (operation === 'import') {
+					const name = this.getNodeParameter('objectName', i) as string;
 					const poseInputParam = this.getNodeParameter('poseInput', i);
-					let body: object;
+					let pose: object;
+
 					if (typeof poseInputParam === 'object' && poseInputParam !== null) {
-						body = poseInputParam;
+						pose = poseInputParam;
 					} else if (typeof poseInputParam === 'string' && poseInputParam.trim() !== '') {
 						const trimmed = poseInputParam.trim();
 						try {
-							body = JSON.parse(trimmed);
+							pose = JSON.parse(trimmed);
 						} catch (e: any) {
-							throw new Error(`Error in parsing input JSON for 'Robot Pose' (received value: "${trimmed}"): ${e.message}`);
+							throw new Error(`Error in parsing input JSON for 'Mesh Pose' (received value: "${trimmed}"): ${e.message}`);
 						}
 					} else {
 						// Fallback automatico dall'input del nodo
 						const inputData = items[i].json as any;
-						if (inputData.Robot && typeof inputData.Robot === 'object') {
-							body = inputData.Robot;
-						} else if (inputData.Pose && typeof inputData.Pose === 'object') {
-							body = inputData.Pose;
+						if (inputData.Pose && typeof inputData.Pose === 'object') {
+							pose = inputData.Pose;
 						} else if (inputData.position && inputData.orientation) {
-							body = inputData;
+							pose = inputData;
 						} else {
-							throw new Error(`Parameter 'Robot Pose' is empty and no valid object has been found ('Robot', 'Pose', or keys 'position'/'orientation') in input data.`);
+							throw new Error(`Parameter 'Mesh Pose' is empty and no valid object has been found in input data.`);
 						}
 					}
 
-					const endpoint = operation === 'move' ? 'move_to_pose' : 'move_relative';
+					const body = {
+						name,
+						pose,
+					};
+
 					const result = await this.helpers.httpRequest({
 						method: 'POST',
-						url: `http://host.docker.internal:8080/${endpoint}`,
+						url: 'http://host.docker.internal:8080/mesh',
 						body,
 						json: true,
 					});
 					returnData.push({ json: result });
 
-				} else if (operation === 'getPose') {
-					const link = this.getNodeParameter('linkName', i) as string;
+				} else if (operation === 'delete') {
+					const result = await this.helpers.httpRequest({
+						method: 'DELETE',
+						url: 'http://host.docker.internal:8080/mesh',
+						json: true,
+					});
+					returnData.push({ json: result });
+
+				} else if (operation === 'get') {
 					const result = await this.helpers.httpRequest({
 						method: 'GET',
-						url: 'http://host.docker.internal:8080/get_pose',
-						qs: {
-							link,
-						},
+						url: 'http://host.docker.internal:8080/mesh',
 						json: true,
 					});
 					returnData.push({ json: result });
