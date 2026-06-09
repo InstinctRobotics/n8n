@@ -6,7 +6,7 @@ import {
 	NodeOperationError,
 } from 'n8n-workflow';
 
-const BASE_URL = 'http://host.docker.internal:8000/api/pose';
+const BASE_URL = 'http://host.docker.internal:8080/pose';
 
 export class Pose implements INodeType {
 	description: INodeTypeDescription = {
