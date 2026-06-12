@@ -16,14 +16,16 @@
     },
     {
       "parameters": {
-        "gripperInput": "{\n  \"position\": 0.002,\n  \"effort\": 50.0\n}",
+        "position": 0.04,
+        "effort": 1,
+        "positionTolerance": 0.005,
         "requestOptions": {}
       },
       "type": "CUSTOM.gripper",
       "typeVersion": 1,
       "position": [
-        0,
-        224
+        -400,
+        96
       ],
       "id": "b35b9ae2-c4ee-49ef-84f2-5830fdfff414",
       "name": "Gripper"
@@ -85,12 +87,12 @@
     {
       "parameters": {
         "operation": "moveRelative",
-        "poseInput": "{\n  \"position\": [0, 0, 0.01],\n  \"orientation\": [1, 0, 0, 0],\n  \"parent\":\"world\"\n}"
+        "poseInput": "{\n  \"position\": [-0.01, 0, 0.01],\n  \"orientation\": [1, 0, 0, 0],\n  \"parent\":\"world\"\n}"
       },
       "type": "CUSTOM.robot",
       "typeVersion": 1,
       "position": [
-        -144,
+        -64,
         224
       ],
       "id": "a5bbcdd6-1bb5-4305-94c3-04c4ce808012",
@@ -98,13 +100,15 @@
     },
     {
       "parameters": {
-        "poseInput": "={{ $json }}"
+        "operation": "attach",
+        "label": "Plane",
+        "parent": "world"
       },
       "type": "CUSTOM.mesh",
       "typeVersion": 1,
       "position": [
-        -512,
-        -16
+        -384,
+        -48
       ],
       "id": "382bacee-9260-48d0-83ce-0babdc6d64b3",
       "name": "Mesh"
@@ -160,13 +164,7 @@
     },
     "Robot1": {
       "main": [
-        [
-          {
-            "node": "Robot2",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     },
     "When clicking ‘Execute workflow’": {
@@ -192,13 +190,7 @@
     },
     "Robot2": {
       "main": [
-        [
-          {
-            "node": "Gripper",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     },
     "Mesh": {
@@ -208,13 +200,7 @@
     },
     "getBin": {
       "main": [
-        [
-          {
-            "node": "Mesh",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     }
   },

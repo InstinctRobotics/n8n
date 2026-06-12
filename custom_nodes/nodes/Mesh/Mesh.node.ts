@@ -39,8 +39,25 @@ export class Mesh implements INodeType {
 						name: 'Get Loaded Meshes',
 						value: 'get',
 					},
+					{
+						name: 'Attach Mesh',
+						value: 'attach',
+					},
 				],
 				default: 'import',
+			},
+			{
+				displayName: 'File Path',
+				name: 'filePath',
+				type: 'string',
+				displayOptions: {
+					show: {
+						operation: ['import'],
+					},
+				},
+				default: '',
+				description: 'Il percorso assoluto del file STL da importare',
+				required: true,
 			},
 			{
 				displayName: 'Object Name',
@@ -51,9 +68,9 @@ export class Mesh implements INodeType {
 						operation: ['import'],
 					},
 				},
-				default: 'bin',
-				description: 'Il nome del file STL (senza .stl) da importare',
-				required: true,
+				default: '',
+				description: 'Il nome da assegnare all\'oggetto (opzionale, di default usa il nome del file)',
+				required: false,
 			},
 			{
 				displayName: 'Posa del Mesh',
@@ -68,6 +85,32 @@ export class Mesh implements INodeType {
 				description: 'Inserisci il JSON con parent, position e orientation della posa',
 				required: true,
 			},
+			{
+				displayName: 'Label',
+				name: 'label',
+				type: 'string',
+				displayOptions: {
+					show: {
+						operation: ['attach'],
+					},
+				},
+				default: '',
+				description: 'Il nome (label) della mesh da attaccare',
+				required: true,
+			},
+			{
+				displayName: 'Parent Link',
+				name: 'parent',
+				type: 'string',
+				displayOptions: {
+					show: {
+						operation: ['attach'],
+					},
+				},
+				default: 'tool0',
+				description: 'Il link del robot a cui attaccare la mesh (es. tool0)',
+				required: true,
+			},
 		],
 	};
 
@@ -80,6 +123,7 @@ export class Mesh implements INodeType {
 				const operation = this.getNodeParameter('operation', i) as string;
 
 				if (operation === 'import') {
+					const path = this.getNodeParameter('filePath', i) as string;
 					const name = this.getNodeParameter('objectName', i) as string;
 					const poseInputParam = this.getNodeParameter('poseInput', i);
 					let pose: object;
@@ -106,7 +150,8 @@ export class Mesh implements INodeType {
 					}
 
 					const body = {
-						name,
+						path,
+						name: name || undefined,
 						pose,
 					};
 
@@ -130,6 +175,22 @@ export class Mesh implements INodeType {
 					const result = await this.helpers.httpRequest({
 						method: 'GET',
 						url: 'http://host.docker.internal:8080/mesh',
+						json: true,
+					});
+					returnData.push({ json: result });
+				} else if (operation === 'attach') {
+					const label = this.getNodeParameter('label', i) as string;
+					const parent = this.getNodeParameter('parent', i) as string;
+
+					const body = {
+						label,
+						parent,
+					};
+
+					const result = await this.helpers.httpRequest({
+						method: 'POST',
+						url: 'http://host.docker.internal:8080/attach_mesh',
+						body,
 						json: true,
 					});
 					returnData.push({ json: result });

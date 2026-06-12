@@ -29,8 +29,9 @@ export class Gripper implements INodeType {
 								method: 'POST',
 								url: 'http://host.docker.internal:8080/gripper',
 								body: {
-									position: '={{(typeof $parameter["gripperInput"] === "string" ? JSON.parse($parameter["gripperInput"]) : $parameter["gripperInput"]).position}}',
-									effort: '={{(typeof $parameter["gripperInput"] === "string" ? JSON.parse($parameter["gripperInput"]) : $parameter["gripperInput"]).effort}}',
+									position: '={{$parameter["position"]}}',
+									effort: '={{$parameter["effort"]}}',
+									position_tolerance: '={{$parameter["positionTolerance"]}}',
 								},
 								headers: {
 									'Content-Type': 'application/json',
@@ -42,16 +43,42 @@ export class Gripper implements INodeType {
 				default: 'control',
 			},
 			{
-				displayName: 'Gripper Input',
-				name: 'gripperInput',
-				type: 'json',
+				displayName: 'Position (m)',
+				name: 'position',
+				type: 'number',
 				displayOptions: {
 					show: {
 						operation: ['control'],
 					},
 				},
-				default: '{\n  "position": 0.0,\n  "effort": 50.0\n}',
-				description: 'JSON with position (meters) and effort',
+				default: 0.0,
+				description: 'Target position in meters (e.g., 0.0 = closed, 0.085 = open)',
+				required: true,
+			},
+			{
+				displayName: 'Effort (N)',
+				name: 'effort',
+				type: 'number',
+				displayOptions: {
+					show: {
+						operation: ['control'],
+					},
+				},
+				default: 0.0,
+				description: 'Maximum effort in Newtons. If the gripper stalls, the command succeeds if the measured effort is greater than or equal to this threshold and the final position is within the tolerance.',
+				required: true,
+			},
+			{
+				displayName: 'Position Tolerance (m)',
+				name: 'positionTolerance',
+				type: 'number',
+				displayOptions: {
+					show: {
+						operation: ['control'],
+					},
+				},
+				default: 0.002,
+				description: 'Allowed tolerance in meters compared to the requested position. If the final position is within this range and the effort condition is met, the grasp is considered successful.',
 				required: true,
 			},
 		],
