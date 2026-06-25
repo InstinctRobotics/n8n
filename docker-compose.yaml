@@ -10,6 +10,7 @@ services:
       - ./n8n_data:/home/node/.n8n
       # Colleghiamo la cartella dei nodi compilati
       - ./custom_nodes/dist:/home/node/.n8n/custom/n8n-nodes-robot-controller
+      - ./custom_nodes/node_modules:/home/node/.n8n/custom/node_modules
       # Colleghiamo la cartella dei workflow condivisi
       - ./workflows:/home/node/workflows
     extra_hosts:
@@ -29,6 +30,7 @@ services:
       - ./n8n_data:/home/node/.n8n
       # Colleghiamo la cartella dei nodi compilati
       - ./custom_nodes/dist:/home/node/.n8n/custom/n8n-nodes-robot-controller
+      - ./custom_nodes/node_modules:/home/node/.n8n/custom/node_modules
       # Colleghiamo la cartella dei workflow condivisi
       - ./workflows:/home/node/workflows
     extra_hosts:

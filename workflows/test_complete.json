@@ -4,19 +4,8 @@
   "active": false,
   "nodes": [
     {
-      "parameters": {},
-      "type": "n8n-nodes-base.manualTrigger",
-      "typeVersion": 1,
-      "position": [
-        -944,
-        144
-      ],
-      "id": "36cb6223-047d-4614-9080-a6f69b31f371",
-      "name": "When clicking ‘Execute workflow’"
-    },
-    {
       "parameters": {
-        "position": 0.04,
+        "position": 0.01,
         "effort": 1,
         "positionTolerance": 0.005,
         "requestOptions": {}
@@ -24,7 +13,7 @@
       "type": "CUSTOM.gripper",
       "typeVersion": 1,
       "position": [
-        -400,
+        -224,
         96
       ],
       "id": "b35b9ae2-c4ee-49ef-84f2-5830fdfff414",
@@ -126,6 +115,73 @@
       ],
       "id": "ae3f49e8-8bee-4b0a-a9b3-58d01496ce64",
       "name": "getBin"
+    },
+    {
+      "parameters": {
+        "path": "c3da3f8c-f238-496f-a024-6ab423736e25",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -992,
+        144
+      ],
+      "id": "bb000df2-4eb8-40c3-9342-d235c669ec4a",
+      "name": "Webhook",
+      "webhookId": "c3da3f8c-f238-496f-a024-6ab423736e25"
+    },
+    {
+      "parameters": {
+        "operation": "wait"
+      },
+      "type": "CUSTOM.opcUa",
+      "typeVersion": 1,
+      "position": [
+        -48,
+        -32
+      ],
+      "id": "86f4187b-a315-4400-8055-6ad07ef4d96a",
+      "name": "OPC UA",
+      "credentials": {
+        "opcUaApi": {
+          "id": "grXR6I1oeS9omFPT",
+          "name": "OPC UA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "hello"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        -976,
+        -32
+      ],
+      "id": "79aa1416-8297-42d4-b9f4-8484153e02ef",
+      "name": "Message a model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "YSczHVeuMrrc2Qlr",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
     }
   ],
   "connections": {
@@ -167,27 +223,6 @@
         []
       ]
     },
-    "When clicking ‘Execute workflow’": {
-      "main": [
-        [
-          {
-            "node": "Vision",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Robot",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "getBin",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Robot2": {
       "main": [
         []
@@ -202,6 +237,22 @@
       "main": [
         []
       ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Robot",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Vision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
@@ -209,6 +260,8 @@
     "binaryMode": "separate"
   },
   "staticData": null,
-  "meta": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
   "pinData": {}
 }

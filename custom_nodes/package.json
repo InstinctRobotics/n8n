@@ -31,8 +31,16 @@
 			"nodes/Vision/Vision.node.js",
 			"nodes/Pose/Pose.node.js",
 			"nodes/Gripper/Gripper.node.js",
-			"nodes/Mesh/Mesh.node.js"
+			"nodes/Mesh/Mesh.node.js",
+			"nodes/OpcUa/OpcUa.node.js",
+			"nodes/OpcUa/OpcUaTrigger.node.js"
+		],
+		"credentials": [
+			"credentials/OpcUaApi.credentials.js"
 		]
+	},
+	"dependencies": {
+		"node-opcua": "^2.132.0"
 	},
 	"devDependencies": {
 		"@types/node": "^18.19.1",
