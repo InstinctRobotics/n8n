@@ -13,8 +13,8 @@
       "type": "CUSTOM.gripper",
       "typeVersion": 1,
       "position": [
-        -224,
-        96
+        112,
+        304
       ],
       "id": "b35b9ae2-c4ee-49ef-84f2-5830fdfff414",
       "name": "Gripper"
@@ -89,9 +89,9 @@
     },
     {
       "parameters": {
-        "operation": "attach",
-        "label": "Plane",
-        "parent": "world"
+        "filePath": "/tmp/isaac_mesh_export_1y4ofult/MAZAK_Nexus510C_2_base.stl",
+        "objectName": "test",
+        "poseInput": "{\n  \"parent\": \"Door\",\n  \"position\": [0, 0, 0],\n  \"orientation\": [1, 0, 0, 0]\n}"
       },
       "type": "CUSTOM.mesh",
       "typeVersion": 1,
@@ -133,55 +133,57 @@
     },
     {
       "parameters": {
-        "operation": "wait"
+        "nodeId": "ns=2;i=2"
       },
       "type": "CUSTOM.opcUa",
       "typeVersion": 1,
       "position": [
-        -48,
-        -32
+        -112,
+        -64
       ],
-      "id": "86f4187b-a315-4400-8055-6ad07ef4d96a",
+      "id": "fe500fd0-0732-4a44-bc99-c38b58dab77b",
       "name": "OPC UA",
       "credentials": {
         "opcUaApi": {
-          "id": "grXR6I1oeS9omFPT",
+          "id": "hCT8XWu5376w48aC",
           "name": "OPC UA account"
         }
       }
     },
     {
       "parameters": {
-        "modelId": {
-          "__rl": true,
-          "value": "models/gemini-2.5-flash",
-          "mode": "list",
-          "cachedResultName": "models/gemini-2.5-flash"
-        },
-        "messages": {
-          "values": [
-            {
-              "content": "hello"
-            }
-          ]
-        },
-        "builtInTools": {},
-        "options": {}
+        "operation": "call",
+        "methodId": "ns=2;s=OpenDoor",
+        "objectId": "ns=2;i=1",
+        "inputArguments": {
+          "arguments": []
+        }
       },
-      "type": "@n8n/n8n-nodes-langchain.googleGemini",
-      "typeVersion": 1.2,
+      "type": "CUSTOM.opcUa",
+      "typeVersion": 1,
       "position": [
-        -976,
-        -32
+        16,
+        64
       ],
-      "id": "79aa1416-8297-42d4-b9f4-8484153e02ef",
-      "name": "Message a model",
+      "id": "1bbe844e-bc24-49b4-93c9-87c6feb8ba05",
+      "name": "Open Door",
       "credentials": {
-        "googlePalmApi": {
-          "id": "YSczHVeuMrrc2Qlr",
-          "name": "Google Gemini(PaLM) Api account"
+        "opcUaApi": {
+          "id": "hCT8XWu5376w48aC",
+          "name": "OPC UA account"
         }
       }
+    },
+    {
+      "parameters": {},
+      "type": "CUSTOM.robot",
+      "typeVersion": 1,
+      "position": [
+        -32,
+        448
+      ],
+      "id": "4dae5d53-ef79-4613-b1c2-3b4ff1f6f30b",
+      "name": "Robot3"
     }
   ],
   "connections": {

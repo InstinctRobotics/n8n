@@ -2,8 +2,7 @@ services:
   n8n:
     image: docker.n8n.io/n8nio/n8n:latest
     restart: always
-    ports:
-      - "5678:5678"
+    network_mode: host
     environment:
       - N8N_CUSTOM_EXTENSIONS=/home/node/.n8n/custom
     volumes:
@@ -20,8 +19,7 @@ services:
   n8n-local:
     image: node:22-bookworm
     restart: always
-    ports:
-      - "5678:5678"
+    network_mode: host
     environment:
       - N8N_CUSTOM_EXTENSIONS=/home/node/.n8n/custom
     working_dir: /usr/local/lib/node_modules/n8n
@@ -36,4 +34,5 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     command: /bin/sh -c "mkdir -p /home/node/workflows && node bin/n8n import:workflow --separate --input=/home/node/workflows || true; node bin/n8n start"
+
 
