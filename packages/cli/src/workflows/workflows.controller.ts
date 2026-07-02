@@ -37,7 +37,6 @@ import {
 } from '@n8n/decorators';
 import { PROJECT_OWNER_ROLE_SLUG } from '@n8n/permissions';
 import { In, type FindOptionsRelations } from '@n8n/typeorm';
-import { Container } from '@n8n/di';
 import axios, { type AxiosRequestConfig } from 'axios';
 import express from 'express';
 import { calculateWorkflowChecksum, ensureError } from 'n8n-workflow';
@@ -756,7 +755,15 @@ export class WorkflowsController {
 	private async saveWorkflowToFileSystem(workflow: WorkflowEntity) {
 		try {
 			let targetDir = '/home/node/workflows';
-			const parentFolderId = workflow.parentFolder?.id;
+			let parentFolderId = workflow.parentFolder?.id;
+
+			if (!parentFolderId) {
+				const dbWorkflow = await this.workflowRepository.findOne({
+					where: { id: workflow.id },
+					relations: ['parentFolder'],
+				});
+				parentFolderId = dbWorkflow?.parentFolder?.id;
+			}
 
 			if (parentFolderId) {
 				const folder = await this.workflowRepository.manager
@@ -820,7 +827,15 @@ export class WorkflowsController {
 	private async deleteWorkflowFromFileSystem(workflow: WorkflowEntity) {
 		try {
 			let targetDir = '/home/node/workflows';
-			const parentFolderId = workflow.parentFolder?.id;
+			let parentFolderId = workflow.parentFolder?.id;
+
+			if (!parentFolderId) {
+				const dbWorkflow = await this.workflowRepository.findOne({
+					where: { id: workflow.id },
+					relations: ['parentFolder'],
+				});
+				parentFolderId = dbWorkflow?.parentFolder?.id;
+			}
 
 			if (parentFolderId) {
 				const folder = await this.workflowRepository.manager
