@@ -21,9 +21,16 @@ WORKDIR /home/node
 COPY --from=builder /usr/local/lib/node_modules/n8n /usr/local/lib/node_modules/n8n
 COPY docker/images/n8n/docker-entrypoint.sh /
 
+ENV N8N_DEFAULT_CREDENTIALS_DIR=/home/node/default_credentials
+
 RUN ln -s /usr/local/lib/node_modules/n8n/bin/n8n /usr/local/bin/n8n && \
     mkdir -p /home/node/.n8n && \
+    mkdir -p /home/node/default_credentials && \
     chown -R node:node /home/node && \
+    apk add --no-cache curl unzip && \
+    curl -sSLo /tmp/bws.zip -L "https://github.com/bitwarden/sdk-sm/releases/download/bws-v0.4.0/bws-x86_64-unknown-linux-musl-0.4.0.zip" && \
+    unzip /tmp/bws.zip -d /usr/local/bin && \
+    chmod +x /usr/local/bin/bws && \
     rm -rf /root/.npm /tmp/*
 
 EXPOSE 5678/tcp

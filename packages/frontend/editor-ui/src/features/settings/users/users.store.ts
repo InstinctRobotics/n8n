@@ -372,10 +372,7 @@ export const useUsersStore = defineStore(STORES.USERS, () => {
 	};
 
 	const showPersonalizationSurvey = async () => {
-		const surveyEnabled = settingsStore.isPersonalizationSurveyEnabled;
-		if (surveyEnabled && currentUser.value && !currentUser.value.personalizationAnswers) {
-			uiStore.openModal(PERSONALIZATION_MODAL_KEY);
-		}
+		// Automatically disabled to bypass get started / personalization onboarding popup
 	};
 
 	const fetchMfaQR = async () => {

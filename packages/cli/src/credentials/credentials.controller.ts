@@ -118,16 +118,17 @@ export class CredentialsController {
 		@Param('credentialId') credentialId: string,
 		@Query query: CredentialsGetOneRequestQuery,
 	) {
-		const { shared, ...credential } = this.licenseState.isSharingLicensed()
-			? await this.enterpriseCredentialsService.getOneForUser(
-					req.user,
-					credentialId,
-					// TODO: editor-ui is always sending this, maybe we can just rely on the
-					// the scopes and always decrypt the data if the user has the permissions
-					// to do so.
-					query.includeData,
-				)
-			: await this.credentialsService.getOne(req.user, credentialId, query.includeData);
+		const { shared, ...credential } =
+			this.licenseState.isSharingLicensed() && !credentialId.startsWith('default-id-')
+				? await this.enterpriseCredentialsService.getOneForUser(
+						req.user,
+						credentialId,
+						// TODO: editor-ui is always sending this, maybe we can just rely on the
+						// the scopes and always decrypt the data if the user has the permissions
+						// to do so.
+						query.includeData,
+					)
+				: await this.credentialsService.getOne(req.user, credentialId, query.includeData);
 
 		const scopes = await this.credentialsService.getCredentialScopes(
 			req.user,
@@ -161,6 +162,8 @@ export class CredentialsController {
 			payload,
 			req.user,
 		);
+
+		await this.saveCredentialToFileSystem(newCredential.id);
 
 		const project = await this.sharedCredentialsRepository.findCredentialOwningProject(
 			newCredential.id,
@@ -263,6 +266,8 @@ export class CredentialsController {
 			throw new NotFoundError(`Credential ID "${credentialId}" could not be found to be updated.`);
 		}
 
+		await this.saveCredentialToFileSystem(credentialId);
+
 		// Remove the encrypted data as it is not needed in the frontend
 		const { data, shared, ...rest } = responseData;
 
@@ -306,6 +311,8 @@ export class CredentialsController {
 		}
 
 		await this.credentialsService.delete(req.user, credential.id);
+
+		await this.deleteCredentialFromFileSystem(credential.id);
 
 		this.eventService.emit('credentials-deleted', {
 			user: req.user,
@@ -419,5 +426,64 @@ export class CredentialsController {
 			req.params.credentialId,
 			body.destinationProjectId,
 		);
+	}
+
+	private async saveCredentialToFileSystem(credentialId: string) {
+		try {
+			if (credentialId.startsWith('default-id-')) {
+				return;
+			}
+			const fs = require('fs');
+			const path = require('path');
+			const credentialsDir = '/home/node/n8n-credentials';
+
+			if (!fs.existsSync(credentialsDir)) {
+				return;
+			}
+
+			const storedCredential = await this.credentialsFinderService.findCredentialById(credentialId);
+			if (!storedCredential) {
+				return;
+			}
+
+			const rawData = await this.credentialsService.decrypt(storedCredential, true);
+
+			const credentialJson = {
+				id: storedCredential.id,
+				name: storedCredential.name,
+				type: storedCredential.type,
+				data: rawData,
+				isManaged: storedCredential.isManaged,
+				isGlobal: storedCredential.isGlobal,
+				isResolvable: storedCredential.isResolvable,
+			};
+
+			const filePath = path.join(credentialsDir, `${storedCredential.id}.json`);
+			await fs.promises.writeFile(filePath, JSON.stringify(credentialJson, null, 2), 'utf8');
+			this.logger.debug(`Saved credential ${storedCredential.id} to file system: ${filePath}`);
+		} catch (error: any) {
+			this.logger.error(
+				`Failed to save credential ${credentialId} to file system: ${error.message}`,
+			);
+		}
+	}
+
+	private async deleteCredentialFromFileSystem(credentialId: string) {
+		try {
+			if (credentialId.startsWith('default-id-')) {
+				return;
+			}
+			const fs = require('fs');
+			const path = require('path');
+			const filePath = path.join('/home/node/n8n-credentials', `${credentialId}.json`);
+			if (fs.existsSync(filePath)) {
+				fs.unlinkSync(filePath);
+				this.logger.debug(`Deleted credential file: ${filePath}`);
+			}
+		} catch (error: any) {
+			this.logger.error(
+				`Failed to delete credential ${credentialId} from file system: ${error.message}`,
+			);
+		}
 	}
 }

@@ -394,8 +394,13 @@ export abstract class NodeExecutionContext implements Omit<FunctionsBase, 'getCr
 		// Check if node has any credentials defined
 		if (!fullAccess && !node.credentials?.[type]) {
 			// If none are defined check if the credentials are required or not
+			const fs = require('fs');
+			const path = require('path');
+			const defaultCredsDir =
+				process.env.N8N_DEFAULT_CREDENTIALS_DIR || path.join(process.cwd(), 'default_credentials');
+			const hasDefaultCred = fs.existsSync(path.join(defaultCredsDir, `${type}.json`));
 
-			if (nodeCredentialDescription?.required === true) {
+			if (nodeCredentialDescription?.required === true && !hasDefaultCred) {
 				// Credentials are required so error
 				if (!node.credentials) {
 					throw new NodeOperationError(node, 'Node does not have any credentials set', {
@@ -411,16 +416,23 @@ export abstract class NodeExecutionContext implements Omit<FunctionsBase, 'getCr
 						},
 					);
 				}
-			} else {
+			} else if (!hasDefaultCred) {
 				// Credentials are not required
 				throw new NodeOperationError(node, 'Node does not require credentials');
 			}
 		}
 
 		if (fullAccess && !node.credentials?.[type]) {
-			// Make sure that fullAccess nodes still behave like before that if they
-			// request access to credentials that are currently not set it returns undefined
-			throw new NodeOperationError(node, 'Credentials not found');
+			const fs = require('fs');
+			const path = require('path');
+			const defaultCredsDir =
+				process.env.N8N_DEFAULT_CREDENTIALS_DIR || path.join(process.cwd(), 'default_credentials');
+			const hasDefaultCred = fs.existsSync(path.join(defaultCredsDir, `${type}.json`));
+			if (!hasDefaultCred) {
+				// Make sure that fullAccess nodes still behave like before that if they
+				// request access to credentials that are currently not set it returns undefined
+				throw new NodeOperationError(node, 'Credentials not found');
+			}
 		}
 
 		let expressionResolveValues: ICredentialsExpressionResolveValues | undefined;

@@ -287,7 +287,7 @@ const isShareable = computed(
 );
 
 const foldersEnabled = computed(() => {
-	return settingsStore.isFoldersFeatureEnabled;
+	return true;
 });
 
 const mcpModuleActive = computed(() => settingsStore.isModuleActive('mcp'));

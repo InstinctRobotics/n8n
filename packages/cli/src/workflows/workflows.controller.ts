@@ -20,6 +20,7 @@ import {
 	ProjectRepository,
 	WorkflowRepository,
 	AuthenticatedRequest,
+	Folder,
 } from '@n8n/db';
 import {
 	Body,
@@ -35,8 +36,8 @@ import {
 	RestController,
 } from '@n8n/decorators';
 import { PROJECT_OWNER_ROLE_SLUG } from '@n8n/permissions';
-// eslint-disable-next-line n8n-local-rules/misplaced-n8n-typeorm-import
 import { In, type FindOptionsRelations } from '@n8n/typeorm';
+import { Container } from '@n8n/di';
 import axios, { type AxiosRequestConfig } from 'axios';
 import express from 'express';
 import { calculateWorkflowChecksum, ensureError } from 'n8n-workflow';
@@ -380,6 +381,8 @@ export class WorkflowsController {
 				'Could not delete the workflow - workflow was not found in your projects',
 			);
 		}
+
+		await this.deleteWorkflowFromFileSystem(workflow);
 
 		return true;
 	}
@@ -752,13 +755,47 @@ export class WorkflowsController {
 
 	private async saveWorkflowToFileSystem(workflow: WorkflowEntity) {
 		try {
-			const workflowsDir = '/home/node/workflows';
-			if (fs.existsSync(workflowsDir)) {
+			let targetDir = '/home/node/workflows';
+			const parentFolderId = workflow.parentFolder?.id;
+
+			if (parentFolderId) {
+				const folder = await this.workflowRepository.manager
+					.getRepository(Folder)
+					.findOneBy({ id: parentFolderId });
+				if (folder) {
+					const projectsDir = '/home/node/projects';
+					const projectWorkflowsDir = path.join(projectsDir, folder.name, 'workflows');
+					if (fs.existsSync(path.join(projectsDir, folder.name))) {
+						if (!fs.existsSync(projectWorkflowsDir)) {
+							fs.mkdirSync(projectWorkflowsDir, { recursive: true });
+						}
+						targetDir = projectWorkflowsDir;
+					}
+				}
+			}
+
+			if (fs.existsSync(targetDir)) {
 				const sanitizedName = (workflow.name || 'Unnamed_Workflow')
 					.replace(/[^a-z0-9_-]/gi, '_')
 					.substring(0, 100);
 				const fileName = `${sanitizedName}.json`;
-				const filePath = path.join(workflowsDir, fileName);
+				const filePath = path.join(targetDir, fileName);
+
+				// Delete any existing files for the same workflow ID in the target folder to prevent duplicates if renamed
+				const files = fs.readdirSync(targetDir);
+				for (const file of files) {
+					if (file.endsWith('.json')) {
+						const fPath = path.join(targetDir, file);
+						try {
+							const content = fs.readFileSync(fPath, 'utf8');
+							const parsed = JSON.parse(content);
+							if (parsed.id === workflow.id && fPath !== filePath) {
+								fs.unlinkSync(fPath);
+								this.logger.debug(`Deleted old renamed workflow file: ${fPath}`);
+							}
+						} catch (e) {}
+					}
+				}
 
 				const workflowJson = {
 					id: workflow.id,
@@ -775,8 +812,48 @@ export class WorkflowsController {
 				await fs.promises.writeFile(filePath, JSON.stringify(workflowJson, null, 2), 'utf8');
 				this.logger.debug(`Saved workflow ${workflow.id} to file system: ${filePath}`);
 			}
-		} catch (error) {
+		} catch (error: any) {
 			this.logger.error(`Failed to save workflow ${workflow.id} to file system: ${error.message}`);
+		}
+	}
+
+	private async deleteWorkflowFromFileSystem(workflow: WorkflowEntity) {
+		try {
+			let targetDir = '/home/node/workflows';
+			const parentFolderId = workflow.parentFolder?.id;
+
+			if (parentFolderId) {
+				const folder = await this.workflowRepository.manager
+					.getRepository(Folder)
+					.findOneBy({ id: parentFolderId });
+				if (folder) {
+					const projectsDir = '/home/node/projects';
+					if (fs.existsSync(path.join(projectsDir, folder.name))) {
+						targetDir = path.join(projectsDir, folder.name, 'workflows');
+					}
+				}
+			}
+
+			if (fs.existsSync(targetDir)) {
+				const files = fs.readdirSync(targetDir);
+				for (const file of files) {
+					if (file.endsWith('.json')) {
+						const fPath = path.join(targetDir, file);
+						try {
+							const content = fs.readFileSync(fPath, 'utf8');
+							const parsed = JSON.parse(content);
+							if (parsed.id === workflow.id) {
+								fs.unlinkSync(fPath);
+								this.logger.debug(`Deleted workflow file: ${fPath}`);
+							}
+						} catch (e) {}
+					}
+				}
+			}
+		} catch (error: any) {
+			this.logger.error(
+				`Failed to delete workflow ${workflow.id} from file system: ${error.message}`,
+			);
 		}
 	}
 }

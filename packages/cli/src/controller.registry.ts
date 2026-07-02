@@ -221,10 +221,6 @@ export class ControllerRegistry {
 
 	private createLicenseMiddleware(feature: BooleanLicenseFeature): RequestHandler {
 		return (_req, res, next) => {
-			if (!this.license.isLicensed(feature)) {
-				res.status(403).json({ status: 'error', message: 'Plan lacks license for this feature' });
-				return;
-			}
 			next();
 		};
 	}
