@@ -12,6 +12,12 @@ import {
 	CHAT_TOOL_NODE_TYPE,
 } from 'n8n-workflow';
 import { type RawData, WebSocket } from 'ws';
+
+declare module 'ws' {
+	interface WebSocket {
+		isAlive?: boolean;
+	}
+}
 import { z } from 'zod';
 
 import { ChatExecutionManager } from './chat-execution-manager';
