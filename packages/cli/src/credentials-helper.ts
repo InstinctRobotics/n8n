@@ -325,7 +325,11 @@ export class CredentialsHelper extends ICredentialsHelper {
 			const path = require('path');
 			const defaultCredsDir =
 				process.env.N8N_DEFAULT_CREDENTIALS_DIR || path.join(process.cwd(), 'default_credentials');
-			const filePath = path.join(defaultCredsDir, `${type}.json`);
+			const baseName =
+				nodeCredential.id && nodeCredential.id.startsWith('default-id-')
+					? nodeCredential.id.replace('default-id-', '')
+					: type;
+			const filePath = path.join(defaultCredsDir, `${baseName}.json`);
 			if (fs.existsSync(filePath)) {
 				try {
 					const content = fs.readFileSync(filePath, 'utf8');
