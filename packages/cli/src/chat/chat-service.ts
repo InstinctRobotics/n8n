@@ -7,6 +7,12 @@ import { ErrorReporter } from 'n8n-core';
 import { ensureError } from '@n8n/utils/errors/ensure-error';
 import { jsonParse, UnexpectedError, CHAT_NODE_TYPE, CHAT_TOOL_NODE_TYPE } from 'n8n-workflow';
 import { type RawData, WebSocket } from 'ws';
+
+declare module 'ws' {
+	interface WebSocket {
+		isAlive?: boolean;
+	}
+}
 import { z } from 'zod';
 
 import { ChatExecutionManager } from './chat-execution-manager';

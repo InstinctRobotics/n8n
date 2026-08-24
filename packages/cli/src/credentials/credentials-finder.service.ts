@@ -1,6 +1,7 @@
 import type { SharedCredentials, User } from '@n8n/db';
 import { CredentialsEntity, CredentialsRepository, SharedCredentialsRepository } from '@n8n/db';
-import { Service } from '@n8n/di';
+import { Container, Service } from '@n8n/di';
+import { Cipher } from 'n8n-core';
 import { hasGlobalScope } from '@n8n/permissions';
 import type { CredentialSharingRole, ProjectRole, Scope } from '@n8n/permissions';
 import type { EntityManager, FindOptionsWhere } from '@n8n/typeorm';
@@ -132,7 +133,6 @@ export class CredentialsFinderService {
 		return credentials;
 	}
 
-	/** Get a credential if it has been shared with a user */
 	async findCredentialForUser(
 		credentialsId: string,
 		user: User,
@@ -145,6 +145,39 @@ export class CredentialsFinderService {
 				usageScope: 'instance',
 			});
 			if (instanceCredential) return instanceCredential;
+		}
+
+		if (credentialsId.startsWith('default-id-')) {
+			const baseName = credentialsId.replace('default-id-', '');
+			const type = baseName.includes('_') ? baseName.split('_')[0] : baseName;
+			const suffix = baseName.includes('_') ? baseName.substring(baseName.indexOf('_') + 1) : '';
+			try {
+				const fs = require('fs');
+				const path = require('path');
+				const defaultCredsDir =
+					process.env.N8N_DEFAULT_CREDENTIALS_DIR ||
+					path.join(process.cwd(), 'default_credentials');
+				const filePath = path.join(defaultCredsDir, `${baseName}.json`);
+				if (fs.existsSync(filePath)) {
+					const rawData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+					const mockEntity = new CredentialsEntity();
+					mockEntity.id = credentialsId;
+
+					const formattedSuffix = suffix ? ` (${suffix})` : '';
+					mockEntity.name = `Default ${type.replace(/^[a-z]/, (l: string) => l.toUpperCase())}${formattedSuffix}`;
+					mockEntity.type = type;
+					const cipher = Container.get(Cipher);
+					mockEntity.data = await cipher.encryptV2(rawData);
+					mockEntity.createdAt = new Date();
+					mockEntity.updatedAt = new Date();
+					mockEntity.isGlobal = true;
+					mockEntity.shared = [];
+					return mockEntity;
+				}
+			} catch (e) {
+				// Fail silently
+			}
+		}
 		}
 
 		let where: FindOptionsWhere<SharedCredentials> = { credentialsId };
@@ -261,8 +294,31 @@ export class CredentialsFinderService {
 	): Promise<Set<string>> {
 		if (credentialIds.length === 0) return new Set();
 
+		// default-id-* credentials are backed by files in N8N_DEFAULT_CREDENTIALS_DIR.
+		// They are not stored in SharedCredentials, so we bypass the DB check for them.
+		const result = new Set<string>();
+		const idsToQuery: string[] = [];
+		const fs = require('fs') as typeof import('fs');
+		const path = require('path') as typeof import('path');
+		const defaultCredsDir =
+			process.env.N8N_DEFAULT_CREDENTIALS_DIR || path.join(process.cwd(), 'default_credentials');
+
+		for (const id of credentialIds) {
+			if (id.startsWith('default-id-')) {
+				const baseName = id.replace('default-id-', '');
+				const filePath = path.join(defaultCredsDir, `${baseName}.json`);
+				if (fs.existsSync(filePath)) {
+					result.add(id);
+					continue;
+				}
+			}
+			idsToQuery.push(id);
+		}
+
+		if (idsToQuery.length === 0) return result;
+
 		let where: FindOptionsWhere<SharedCredentials> = {
-			credentialsId: In(credentialIds),
+			credentialsId: In(idsToQuery),
 			credentials: { usageScope: 'project' },
 		};
 
@@ -288,12 +344,12 @@ export class CredentialsFinderService {
 			where,
 		});
 
-		const result = new Set(sharedCredentials.map((sc) => sc.credentialsId));
+		for (const sc of sharedCredentials) result.add(sc.credentialsId);
 
 		// Also include global credentials if scopes allow read-only access
 		if (this.hasGlobalReadOnlyAccess(scopes)) {
 			const globalCreds = await this.credentialsRepository.find({
-				where: { id: In(credentialIds), isGlobal: true, usageScope: 'project' },
+				where: { id: In(idsToQuery), isGlobal: true, usageScope: 'project' },
 				select: ['id'],
 			});
 			for (const gc of globalCreds) result.add(gc.id);

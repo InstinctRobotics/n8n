@@ -147,12 +147,12 @@ watch(
 	},
 );
 
-const showSaveButton = computed(() => !settingsStore.isAutosaveEnabled);
+const showSaveButton = computed(() => true);
 
 const onSaveButtonClick = async () => {
 	isSaving.value = true;
 	try {
-		await saveCurrentWorkflow({});
+		await saveCurrentWorkflow({}, true, true);
 	} finally {
 		isSaving.value = false;
 	}
@@ -757,11 +757,9 @@ useKeybindings({
 	},
 	'ctrl+s': {
 		disabled: () =>
-			!isNamedVersionsEnabled.value ||
-			!hasUpdatePermission.value ||
-			!workflowDocumentStore.value.versionId,
+			!hasUpdatePermission.value || collaborationReadOnly.value,
 		run: async () => {
-			await onNameVersion();
+			await onSaveButtonClick();
 		},
 	},
 	'ctrl+u': {
@@ -786,15 +784,14 @@ onBeforeUnmount(() => {
 	<div :class="$style.container">
 		<CollaborationPane v-if="!isNewWorkflow" />
 		<N8nButton
-			v-if="showSaveButton && !isArchived && workflowPermissions.update"
+			v-if="showSaveButton && !isArchived"
 			:loading="isSaving"
-			:disabled="!uiStore.stateIsDirty || collaborationReadOnly"
+			:disabled="collaborationReadOnly"
+			type="secondary"
 			data-test-id="workflow-save-button"
 			@click="onSaveButtonClick"
 		>
-			{{
-				uiStore.stateIsDirty ? i18n.baseText('saveButton.save') : i18n.baseText('saveButton.saved')
-			}}
+			{{ i18n.baseText('saveButton.save') }}
 		</N8nButton>
 		<div v-if="showWorkflowReviewControls" :class="$style.reviewStatusBannerSlot">
 			<WorkflowReviewStatusBanner

@@ -156,10 +156,7 @@ export class FrontendService {
 	}
 
 	private async getShowSetupOnFirstLoad() {
-		const previewMode = process.env.N8N_PREVIEW_MODE === 'true';
-		const hasInstanceOwner = await this.ownershipService.hasInstanceOwner();
-		// In preview mode, skip the setup redirect to allow accessing demo routes
-		return previewMode ? false : !hasInstanceOwner;
+		return false;
 	}
 
 	private async initSettings() {
@@ -256,8 +253,7 @@ export class FrontendService {
 				proxy: `${instanceBaseUrl}/${restEndpoint}/ph`,
 				debug: this.globalConfig.logging.level === 'debug',
 			},
-			personalizationSurveyEnabled:
-				this.globalConfig.personalization.enabled && this.globalConfig.diagnostics.enabled,
+			personalizationSurveyEnabled: false,
 			defaultLocale: this.globalConfig.defaultLocale,
 			userManagement: {
 				quota: this.license.getUsersLimit(),
@@ -529,7 +525,7 @@ export class FrontendService {
 			variables: this.license.isVariablesEnabled(),
 			sourceControl: this.license.isSourceControlLicensed(),
 			externalSecrets: this.license.isExternalSecretsEnabled(),
-			showNonProdBanner: this.license.isLicensed(LICENSE_FEATURES.SHOW_NON_PROD_BANNER),
+			showNonProdBanner: false,
 			debugInEditor: this.license.isDebugInEditorLicensed(),
 			binaryDataS3: isS3Available && isS3Selected && isS3Licensed,
 			workerView: this.license.isWorkerViewLicensed(),

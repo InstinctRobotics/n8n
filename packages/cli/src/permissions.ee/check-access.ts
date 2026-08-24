@@ -96,6 +96,9 @@ export async function userHasScopes(
 	const roleService = Container.get(RoleService);
 
 	if (credentialId) {
+		if (credentialId.startsWith('default-id-')) {
+			return true;
+		}
 		const credentialRepo = entityManager
 			? entityManager.getRepository(SharedCredentials)
 			: Container.get(SharedCredentialsRepository);

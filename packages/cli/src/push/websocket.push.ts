@@ -2,7 +2,13 @@ import { heartbeatMessageSchema } from '@n8n/api-types';
 import type { User } from '@n8n/db';
 import { Service } from '@n8n/di';
 import { UnexpectedError } from 'n8n-workflow';
-import type WebSocket from 'ws';
+import { type RawData, type WebSocket } from 'ws';
+
+declare module 'ws' {
+	interface WebSocket {
+		isAlive?: boolean;
+	}
+}
 
 import { AbstractPush } from './abstract.push';
 
@@ -18,7 +24,7 @@ export class WebSocketPush extends AbstractPush<WebSocket> {
 
 		super.add(pushRef, userId, connection);
 
-		const onMessage = async (data: WebSocket.RawData) => {
+		const onMessage = async (data: RawData) => {
 			try {
 				const buffer = Array.isArray(data)
 					? Buffer.concat(data)

@@ -38,6 +38,7 @@ export const FLOWS_CONTROL_SUBCATEGORY = 'Flow';
 export const AI_SUBCATEGORY = 'AI';
 export const HELPERS_SUBCATEGORY = 'Helpers';
 export const HITL_SUBCATEGORY = 'Human in the Loop';
+export const ROBOTICS_SUBCATEGORY = 'Robotics';
 export const AI_CATEGORY_AGENTS = 'Agents';
 export const AI_CATEGORY_CHAINS = 'Chains';
 export const AI_CATEGORY_LANGUAGE_MODELS = 'Language Models';

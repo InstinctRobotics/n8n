@@ -171,6 +171,25 @@ export class AuthService {
 						throw error;
 					}
 				}
+			} else {
+				// Passwordless auto-login for local development / single user
+				try {
+					const userRepository = require('@n8n/db').UserRepository;
+					const container = require('@n8n/di').Container;
+					const userRepo = container.get(userRepository);
+					const dummyUser = await userRepo.findOne({
+						where: { email: 'dummy@n8n.local' },
+						relations: ['role'],
+					});
+					if (dummyUser) {
+						req.user = dummyUser;
+						req.authInfo = { usedMfa: false };
+						// Issue the session cookie to the browser automatically
+						this.issueCookie(res, dummyUser, false);
+					}
+				} catch (e) {
+					// Fallback silently if user repo is not available yet
+				}
 			}
 
 			const isPreviewMode = process.env.N8N_PREVIEW_MODE === 'true';

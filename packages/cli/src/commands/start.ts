@@ -6,7 +6,18 @@ import {
 	DeploymentKeyRepository,
 	ExecutionRepository,
 	SettingsRepository,
+	UserRepository,
+	ProjectRepository,
+	FolderRepository,
+	WorkflowRepository,
+	GLOBAL_OWNER_ROLE,
+	generateNanoId,
+	CredentialsRepository,
+	SharedCredentialsRepository,
+	CredentialsEntity,
+	SharedCredentials,
 } from '@n8n/db';
+import { ImportService } from '@/services/import.service';
 import { Command } from '@n8n/decorators';
 import { Container } from '@n8n/di';
 import { McpServer } from '@n8n/n8n-nodes-langchain/mcp/core';
@@ -14,8 +25,8 @@ import { sleep } from '@n8n/utils/sleep';
 import glob from 'fast-glob';
 import { createReadStream, createWriteStream, existsSync } from 'fs';
 import { mkdir } from 'fs/promises';
-import { BinaryDataConfig } from 'n8n-core';
-import { jsonParse } from 'n8n-workflow';
+import { BinaryDataConfig, Cipher } from 'n8n-core';
+import { jsonParse, sleep, type IWorkflowExecutionDataProcess } from 'n8n-workflow';
 import path from 'path';
 import replaceStream from 'replacestream';
 import { pipeline } from 'stream/promises';
@@ -269,6 +280,25 @@ export class Start extends BaseCommand<z.infer<typeof flagsSchema>> {
 
 			await this.initInstanceSettingsLoader();
 			this.logger.debug('Instance settings loader init complete');
+
+			// Automatic setup of dummy owner user to bypass the setup wizard
+			try {
+				const ownershipService = Container.get(OwnershipService);
+				if (!(await ownershipService.hasInstanceOwner())) {
+					this.logger.info(
+						'No instance owner found. Setting up dummy owner user to bypass setup onboarding...',
+					);
+					await ownershipService.setupOwner({
+						email: 'dummy@n8n.local',
+						firstName: 'Local',
+						lastName: 'Developer',
+						password: 'LocalDeveloperPassword123!',
+					});
+					this.logger.info('Dummy owner user set up successfully.');
+				}
+			} catch (e) {
+				this.logger.error('Failed to setup dummy owner user: ' + e.message);
+			}
 		}
 
 		await this.initBinaryDataService();
@@ -423,6 +453,12 @@ export class Start extends BaseCommand<z.infer<typeof flagsSchema>> {
 			await Container.get(EnqueuedExecutionRecoveryService).recoverEnqueuedExecutions();
 		}
 
+		// Auto-import custom credentials and project workflows
+		if (this.instanceSettings.instanceType === 'main') {
+			await this.autoImportCustomCredentials();
+			await this.autoImportProjectsWorkflows();
+		}
+
 		// Start to get active workflows and run their triggers
 		if (this.globalConfig.workflows.useWorkflowPublicationService) {
 			const { WorkflowPublicationOutboxConsumer } = await import(
@@ -498,5 +534,232 @@ export class Start extends BaseCommand<z.infer<typeof flagsSchema>> {
 	async catch(error: Error) {
 		if (error.stack) this.logger.error(error.stack);
 		await this.exitWithCrash('Exiting due to an error.', error);
+	}
+
+	/**
+	 * During startup, we may find executions that had been enqueued at the time of shutdown.
+	 *
+	 * If so, start running any such executions concurrently up to the concurrency limit, and
+	 * enqueue any remaining ones until we have spare concurrency capacity again.
+	 */
+	private async runEnqueuedExecutions() {
+		const executions = await Container.get(ExecutionService).findAllEnqueuedExecutions();
+
+		if (executions.length === 0) return;
+
+		this.logger.debug('[Startup] Found enqueued executions to run', {
+			executionIds: executions.map((e) => e.id),
+		});
+
+		const ownershipService = Container.get(OwnershipService);
+		const workflowRunner = Container.get(WorkflowRunner);
+
+		for (const execution of executions) {
+			const project = await ownershipService.getWorkflowProjectCached(execution.workflowId);
+
+			const data: IWorkflowExecutionDataProcess = {
+				executionMode: execution.mode,
+				executionData: execution.data,
+				workflowData: execution.workflowData,
+				projectId: project.id,
+			};
+
+			Container.get(EventService).emit('execution-started-during-bootup', {
+				executionId: execution.id,
+			});
+
+			// do not block - each execution either runs concurrently or is queued
+			void workflowRunner.run(data, undefined, false, execution.id);
+		}
+	}
+
+	private async autoImportProjectsWorkflows() {
+		try {
+			const fs = require('fs');
+			const path = require('path');
+			const projectsDir = '/home/node/projects';
+
+			if (!fs.existsSync(projectsDir)) {
+				this.logger.info(
+					`Projects directory ${projectsDir} does not exist. Skipping projects auto-import.`,
+				);
+				return;
+			}
+
+			const owner = await Container.get(UserRepository).findOneBy({
+				role: { slug: GLOBAL_OWNER_ROLE.slug },
+			});
+			if (!owner) {
+				this.logger.error('Auto-import projects: owner user not found.');
+				return;
+			}
+			const personalProject = await Container.get(
+				ProjectRepository,
+			).getPersonalProjectForUserOrFail(owner.id);
+			const folderRepository = Container.get(FolderRepository);
+			const workflowRepository = Container.get(WorkflowRepository);
+			const importService = Container.get(ImportService);
+
+			const projectFolders = fs
+				.readdirSync(projectsDir, { withFileTypes: true })
+				.filter((dirent: any) => dirent.isDirectory())
+				.map((dirent: any) => dirent.name);
+
+			this.logger.info(`Auto-importing workflows from ${projectFolders.length} projects...`);
+
+			for (const projectName of projectFolders) {
+				const projectWorkflowsDir = path.join(projectsDir, projectName, 'workflows');
+				if (!fs.existsSync(projectWorkflowsDir)) {
+					continue;
+				}
+
+				// 1. Create or get the folder with name projectName
+				let folder = await folderRepository.findOneBy({
+					name: projectName,
+					homeProject: { id: personalProject.id },
+				});
+				if (!folder) {
+					folder = folderRepository.create({
+						name: projectName,
+						homeProject: { id: personalProject.id },
+					});
+					folder = await folderRepository.save(folder);
+					this.logger.info(`Created folder "${projectName}" for project workflows.`);
+				}
+
+				// 2. Scan workflows directory for .json files
+				const files = fs
+					.readdirSync(projectWorkflowsDir)
+					.filter((file: string) => file.endsWith('.json'));
+
+				const workflowsToImport = [];
+				for (const file of files) {
+					const filePath = path.join(projectWorkflowsDir, file);
+					try {
+						const content = fs.readFileSync(filePath, 'utf8');
+						const workflowData = JSON.parse(content);
+						if (!workflowData.id) {
+							workflowData.id = generateNanoId();
+						}
+						// Assign to the folder
+						workflowData.parentFolderId = folder.id;
+						workflowsToImport.push(workflowData);
+					} catch (err: any) {
+						this.logger.error(`Error parsing workflow file ${file}: ${err.message}`);
+					}
+				}
+
+				if (workflowsToImport.length > 0) {
+					this.logger.info(
+						`Importing ${workflowsToImport.length} workflows for project "${projectName}" into folder "${projectName}"...`,
+					);
+					// Import workflows
+					await importService.importWorkflows(workflowsToImport, personalProject.id, {
+						activeState: 'false',
+					});
+
+					// Set parentFolderId for imported workflows
+					for (const wf of workflowsToImport) {
+						await workflowRepository.update({ id: wf.id }, { parentFolder: folder });
+					}
+				}
+			}
+		} catch (error: any) {
+			this.logger.error('Error auto-importing project workflows: ' + error.message);
+		}
+	}
+
+	private async autoImportCustomCredentials() {
+		try {
+			const fs = require('fs');
+			const path = require('path');
+			const credentialsDir = '/home/node/n8n-credentials';
+
+			if (!fs.existsSync(credentialsDir)) {
+				this.logger.info(
+					`Credentials directory ${credentialsDir} does not exist. Skipping custom credentials auto-import.`,
+				);
+				return;
+			}
+
+			const files = fs.readdirSync(credentialsDir).filter((file: string) => file.endsWith('.json'));
+			if (files.length === 0) {
+				return;
+			}
+
+			const cipher = Container.get<Cipher>(Cipher);
+
+			const owner = await Container.get<UserRepository>(UserRepository).findOneBy({
+				role: { slug: GLOBAL_OWNER_ROLE.slug },
+			});
+			if (!owner) {
+				this.logger.error('Auto-import credentials: owner user not found.');
+				return;
+			}
+			const personalProject = await Container.get<ProjectRepository>(
+				ProjectRepository,
+			).getPersonalProjectForUserOrFail(owner.id);
+			const credentialsRepository = Container.get<CredentialsRepository>(CredentialsRepository);
+			const sharedCredentialsRepository = Container.get<SharedCredentialsRepository>(
+				SharedCredentialsRepository,
+			);
+
+			this.logger.info(
+				`Auto-importing ${files.length} custom credentials from ${credentialsDir}...`,
+			);
+
+			for (const file of files) {
+				const filePath = path.join(credentialsDir, file);
+				try {
+					const content = fs.readFileSync(filePath, 'utf8');
+					const cred = JSON.parse(content);
+
+					if (!cred.id || !cred.name || !cred.type || !cred.data) {
+						this.logger.error(`Skipping invalid credential file: ${file}`);
+						continue;
+					}
+
+					// Encrypt data if it is not already encrypted
+					let encryptedData = cred.data;
+					if (typeof cred.data === 'object' && cred.data !== null) {
+						encryptedData = await cipher.encryptV2(cred.data);
+					}
+
+					// Save/upsert to DB
+					const credentialEntity = credentialsRepository.create({
+						id: cred.id,
+						name: cred.name,
+						type: cred.type,
+						data: encryptedData,
+						isManaged: cred.isManaged ?? false,
+						isGlobal: cred.isGlobal ?? false,
+						isResolvable: cred.isResolvable ?? false,
+					});
+
+					await credentialsRepository.save(credentialEntity);
+
+					// Create ownership relationship
+					const sharingExists = await sharedCredentialsRepository.existsBy({
+						credentialsId: cred.id,
+						role: 'credential:owner',
+					});
+
+					if (!sharingExists) {
+						const sharedCred = sharedCredentialsRepository.create({
+							credentialsId: cred.id,
+							role: 'credential:owner',
+							projectId: personalProject.id,
+						});
+						await sharedCredentialsRepository.save(sharedCred);
+					}
+
+					this.logger.info(`Successfully imported custom credential "${cred.name}" (${cred.id}).`);
+				} catch (err: any) {
+					this.logger.error(`Error importing custom credential file ${file}: ${err.message}`);
+				}
+			}
+		} catch (error: any) {
+			this.logger.error('Error auto-importing custom credentials: ' + error.message);
+		}
 	}
 }

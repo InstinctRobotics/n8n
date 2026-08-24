@@ -416,13 +416,8 @@ export const useUsersStore = defineStore(STORES.USERS, () => {
 		setPersonalizationAnswers(results);
 	};
 
-	// Synchronous: after the `ui.store` modal decoupling this only fires the injected
-	// opener. All call sites invoke it fire-and-forget (`void ...`).
-	const showPersonalizationSurvey = () => {
-		const surveyEnabled = settingsStore.isPersonalizationSurveyEnabled;
-		if (surveyEnabled && currentUser.value && !currentUser.value.personalizationAnswers) {
-			modalOpeners.value.openModal(PERSONALIZATION_MODAL_KEY);
-		}
+	const showPersonalizationSurvey = async () => {
+		// Automatically disabled to bypass get started / personalization onboarding popup
 	};
 
 	const fetchMfaQR = async () => {

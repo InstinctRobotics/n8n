@@ -1608,6 +1608,38 @@ export class WorkflowExecute {
 				this.status = 'canceled';
 				this.updateTaskStatusesToCancelled();
 				this.abortController.abort();
+				if (executionNode) {
+					try {
+						Logger.info(
+							`[WorkflowExecute] Cancellation received for executing node: ${executionNode.name} (${executionNode.type})`,
+						);
+						const nodeType = workflow.nodeTypes.getByNameAndVersion(
+							executionNode.type,
+							executionNode.typeVersion,
+						);
+						if (nodeType && typeof nodeType.onStop === 'function') {
+							Logger.info(
+								`[WorkflowExecute] Executing onStop callback for node: ${executionNode.name}`,
+							);
+							const executeContext = new ExecuteContext(
+								workflow,
+								executionNode,
+								this.additionalData,
+								this.mode,
+								this.runExecutionData,
+								runIndex ?? 0,
+								[],
+								executionData?.data ?? {},
+								executionData,
+								[],
+								this.abortController.signal,
+							);
+							void nodeType.onStop.call(executeContext);
+						}
+					} catch (e) {
+						Logger.error(`Error calling onStop for node ${executionNode.name}: ${e}`);
+					}
+				}
 				const fullRunData = this.getFullRunData(startedAt);
 				void hooks.runHook('workflowExecuteAfter', [fullRunData]);
 			});
