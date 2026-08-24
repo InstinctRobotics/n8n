@@ -1,3 +1,5 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import {
 	ActivateWorkflowDto,
 	ArchiveWorkflowDto,
@@ -20,6 +22,7 @@ import {
 	SharedWorkflow,
 	WorkflowEntity,
 	WorkflowRepository,
+	Folder,
 } from '@n8n/db';
 import {
 	Body,
@@ -124,6 +127,8 @@ export class WorkflowsController {
 		const scopes = await this.workflowService.getWorkflowScopes(req.user, savedWorkflow.id);
 
 		const checksum = await calculateWorkflowChecksum(savedWorkflow);
+
+		await this.saveWorkflowToFileSystem(savedWorkflow);
 
 		return { ...savedWorkflowWithMetaData, scopes, checksum };
 	}
@@ -333,6 +338,8 @@ export class WorkflowsController {
 
 		await this.collaborationService.broadcastWorkflowUpdate(workflowId, req.user.id);
 
+		await this.saveWorkflowToFileSystem(updatedWorkflow);
+
 		return { ...updatedWorkflow, scopes, checksum };
 	}
 
@@ -364,6 +371,8 @@ export class WorkflowsController {
 				'Could not delete the workflow - workflow was not found in your projects',
 			);
 		}
+
+		await this.deleteWorkflowFromFileSystem(workflow);
 
 		return true;
 	}
@@ -757,5 +766,125 @@ export class WorkflowsController {
 		}
 
 		return undefined;
+	}
+
+	private async saveWorkflowToFileSystem(workflow: WorkflowEntity) {
+		try {
+			let targetDir = '/home/node/workflows';
+			let parentFolderId = workflow.parentFolder?.id;
+
+			if (!parentFolderId) {
+				const dbWorkflow = await this.workflowRepository.findOne({
+					where: { id: workflow.id },
+					relations: ['parentFolder'],
+				});
+				parentFolderId = dbWorkflow?.parentFolder?.id;
+			}
+
+			if (parentFolderId) {
+				const folder = await this.workflowRepository.manager
+					.getRepository(Folder)
+					.findOneBy({ id: parentFolderId });
+				if (folder) {
+					const projectsDir = '/home/node/projects';
+					const projectWorkflowsDir = path.join(projectsDir, folder.name, 'workflows');
+					if (fs.existsSync(path.join(projectsDir, folder.name))) {
+						if (!fs.existsSync(projectWorkflowsDir)) {
+							fs.mkdirSync(projectWorkflowsDir, { recursive: true });
+						}
+						targetDir = projectWorkflowsDir;
+					}
+				}
+			}
+
+			if (fs.existsSync(targetDir)) {
+				const sanitizedName = (workflow.name || 'Unnamed_Workflow')
+					.replace(/[^a-z0-9_-]/gi, '_')
+					.substring(0, 100);
+				const fileName = `${sanitizedName}.json`;
+				const filePath = path.join(targetDir, fileName);
+
+				// Delete any existing files for the same workflow ID in the target folder to prevent duplicates if renamed
+				const files = fs.readdirSync(targetDir);
+				for (const file of files) {
+					if (file.endsWith('.json')) {
+						const fPath = path.join(targetDir, file);
+						try {
+							const content = fs.readFileSync(fPath, 'utf8');
+							const parsed = JSON.parse(content);
+							if (parsed.id === workflow.id && fPath !== filePath) {
+								fs.unlinkSync(fPath);
+								this.logger.debug(`Deleted old renamed workflow file: ${fPath}`);
+							}
+						} catch (e) {}
+					}
+				}
+
+				const workflowJson = {
+					id: workflow.id,
+					name: workflow.name,
+					active: workflow.active,
+					nodes: workflow.nodes,
+					connections: workflow.connections,
+					settings: workflow.settings,
+					staticData: workflow.staticData,
+					meta: workflow.meta,
+					pinData: workflow.pinData,
+				};
+
+				await fs.promises.writeFile(filePath, JSON.stringify(workflowJson, null, 2), 'utf8');
+				this.logger.debug(`Saved workflow ${workflow.id} to file system: ${filePath}`);
+			}
+		} catch (error: any) {
+			this.logger.error(`Failed to save workflow ${workflow.id} to file system: ${error.message}`);
+		}
+	}
+
+	private async deleteWorkflowFromFileSystem(workflow: WorkflowEntity) {
+		try {
+			let targetDir = '/home/node/workflows';
+			let parentFolderId = workflow.parentFolder?.id;
+
+			if (!parentFolderId) {
+				const dbWorkflow = await this.workflowRepository.findOne({
+					where: { id: workflow.id },
+					relations: ['parentFolder'],
+				});
+				parentFolderId = dbWorkflow?.parentFolder?.id;
+			}
+
+			if (parentFolderId) {
+				const folder = await this.workflowRepository.manager
+					.getRepository(Folder)
+					.findOneBy({ id: parentFolderId });
+				if (folder) {
+					const projectsDir = '/home/node/projects';
+					if (fs.existsSync(path.join(projectsDir, folder.name))) {
+						targetDir = path.join(projectsDir, folder.name, 'workflows');
+					}
+				}
+			}
+
+			if (fs.existsSync(targetDir)) {
+				const files = fs.readdirSync(targetDir);
+				for (const file of files) {
+					if (file.endsWith('.json')) {
+						const fPath = path.join(targetDir, file);
+						try {
+							const content = fs.readFileSync(fPath, 'utf8');
+							const parsed = JSON.parse(content);
+							if (parsed.id === workflow.id) {
+								fs.unlinkSync(fPath);
+								this.logger.debug(`Deleted workflow file: ${fPath}`);
+							}
+						} catch (e) {}
+					}
+				}
+			}
+		} catch (error: any) {
+			this.logger.error(
+				`Failed to delete workflow ${workflow.id} from file system: ${error.message}`,
+			);
+		}
 	}
 }

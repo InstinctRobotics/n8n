@@ -5,7 +5,13 @@ import { Service } from '@n8n/di';
 import type { BrokerMessage, RunnerMessage } from '@n8n/task-runner';
 import { sleep } from '@n8n/utils/sleep';
 import { jsonStringify, UserError } from 'n8n-workflow';
-import type WebSocket from 'ws';
+import type { RawData, WebSocket } from 'ws';
+
+declare module 'ws' {
+	interface WebSocket {
+		isAlive?: boolean;
+	}
+}
 
 import { WsStatusCodes } from '@/constants';
 import { EventService } from '@/events/event.service';
@@ -133,7 +139,7 @@ export class TaskBrokerWsServer {
 
 		let isConnected = false;
 
-		const onMessage = async (data: WebSocket.RawData) => {
+		const onMessage = async (data: RawData) => {
 			try {
 				const buffer = Array.isArray(data)
 					? Buffer.concat(data)

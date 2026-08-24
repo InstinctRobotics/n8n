@@ -28,7 +28,7 @@ import {
 	type FindOptionsRelations,
 	type FindOptionsWhere,
 } from '@n8n/typeorm';
-import { CredentialDataError, Credentials, ErrorReporter } from 'n8n-core';
+import { CredentialDataError, Credentials, ErrorReporter, Cipher } from 'n8n-core';
 import type {
 	ICredentialDataDecryptedObject,
 	ICredentialsDecrypted,
@@ -215,6 +215,7 @@ export class CredentialsService {
 		private readonly instanceCredentialUseRegistry: InstanceCredentialUseRegistry,
 		private readonly dbLockService: DbLockService,
 		private readonly eventService: EventService,
+		private readonly cipher: Cipher,
 	) {}
 
 	async countConnectedUsers(credentialId: string): Promise<number> {
@@ -339,6 +340,57 @@ export class CredentialsService {
 		const { credentials, count } = returnAll
 			? await this.getManyForAdminUser(user, fetchOptions)
 			: await this.getManyForMemberUser(user, fetchOptions);
+
+		// Inject mock credentials from default_credentials files so they are shown in n8n UI
+		try {
+			const fs = require('fs');
+			const path = require('path');
+			const defaultCredsDir =
+				process.env.N8N_DEFAULT_CREDENTIALS_DIR || path.join(process.cwd(), 'default_credentials');
+			if (fs.existsSync(defaultCredsDir)) {
+				const files = fs.readdirSync(defaultCredsDir);
+				for (const file of files) {
+					if (file.endsWith('.json')) {
+						const baseName = file.replace('.json', '');
+						// Se il file contiene un underscore (es: postgres_db_prj003.json), il tipo reale è la prima parte
+						const type = baseName.includes('_') ? baseName.split('_')[0] : baseName;
+						const suffix = baseName.includes('_')
+							? baseName.substring(baseName.indexOf('_') + 1)
+							: '';
+
+						const rawData = JSON.parse(fs.readFileSync(path.join(defaultCredsDir, file), 'utf8'));
+
+						// Evitiamo duplicati basandoci sul nome file unico (baseName)
+						if (!credentials.some((c) => c.id === `default-id-${baseName}`)) {
+							const mockEntity = new CredentialsEntity();
+							mockEntity.id = `default-id-${baseName}`;
+
+							const formattedSuffix = suffix ? ` (${suffix})` : '';
+							mockEntity.name = `Default ${type.replace(/^[a-z]/, (l: string) => l.toUpperCase())}${formattedSuffix}`;
+							mockEntity.type = type;
+							mockEntity.data = await this.cipher.encryptV2(rawData);
+							mockEntity.createdAt = new Date();
+							mockEntity.updatedAt = new Date();
+							mockEntity.isGlobal = true;
+
+							// Mock scopes and relation properties to satisfy UI checks
+							(mockEntity as any).scopes = [
+								'credential:read',
+								'credential:update',
+								'credential:delete',
+							];
+							(mockEntity as any).shared = [];
+							(mockEntity as any).homeProject = null;
+							(mockEntity as any).sharedWithProjects = [];
+
+							credentials.push(mockEntity);
+						}
+					}
+				}
+			}
+		} catch (e) {
+			// Fail silently
+		}
 
 		const enriched = await this.enrichCredentials(
 			credentials,
@@ -570,24 +622,43 @@ export class CredentialsService {
 				? listQueryOptions.filter.shared.projectId
 				: onlySharedWithMe;
 
-		if (needsRelations) {
+		const dbCredentials = credentials.filter((c) => !c.id.startsWith('default-id-'));
+		const mockCredentials = credentials.filter((c) => c.id.startsWith('default-id-'));
+
+		if (needsRelations && dbCredentials.length > 0) {
 			const relations = await this.sharedCredentialsRepository.getAllRelationsForCredentials(
-				credentials.map((c) => c.id),
+				dbCredentials.map((c) => c.id),
 			);
-			credentials.forEach((c) => {
+			dbCredentials.forEach((c) => {
 				c.shared = relations.filter((r) => r.credentialsId === c.id);
 			});
 		}
 
-		return credentials.map((c) => this.ownershipService.addOwnedByAndSharedWith(c));
+		const enrichedDb = dbCredentials.map((c) => this.ownershipService.addOwnedByAndSharedWith(c));
+		return [...enrichedDb, ...mockCredentials];
 	}
 
 	private async addScopesToCredentials(
 		credentials: CredentialsEntity[],
 		user: User,
 	): Promise<CredentialsEntity[]> {
+		const dbCredentials = credentials.filter((c) => !c.id.startsWith('default-id-'));
+		const mockCredentials = credentials.filter((c) => c.id.startsWith('default-id-'));
+
 		const projectRelations = await this.projectService.getProjectRelationsForUser(user);
-		return credentials.map((c) => this.roleService.addScopes(c, user, projectRelations));
+		const enrichedDb = dbCredentials.map((c) =>
+			this.roleService.addScopes(c, user, projectRelations),
+		);
+
+		// Assegna gli scope di default anche alle credenziali mock
+		const enrichedMock = mockCredentials.map((c) => {
+			if (!(c as any).scopes) {
+				(c as any).scopes = ['credential:read', 'credential:update', 'credential:delete'];
+			}
+			return c;
+		});
+
+		return [...enrichedDb, ...enrichedMock];
 	}
 
 	private async addDecryptedDataToCredentials(
@@ -934,6 +1005,24 @@ export class CredentialsService {
 	 * If `includeRawData` is set to true it will not redact the data.
 	 */
 	async decrypt(credential: CredentialsEntity, includeRawData = false) {
+		if (credential.id && credential.id.startsWith('default-id-')) {
+			const baseName = credential.id.replace('default-id-', '');
+			try {
+				const fs = require('fs');
+				const path = require('path');
+				const defaultCredsDir =
+					process.env.N8N_DEFAULT_CREDENTIALS_DIR ||
+					path.join(process.cwd(), 'default_credentials');
+				const filePath = path.join(defaultCredsDir, `${baseName}.json`);
+				if (fs.existsSync(filePath)) {
+					const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+					if (includeRawData) {
+						return data;
+					}
+					return this.redact(data, credential);
+				}
+			} catch (e) {}
+		}
 		const coreCredential = createCredentialsFromCredentialsEntity(credential);
 		try {
 			const data = await coreCredential.getData();
@@ -1542,6 +1631,7 @@ export class CredentialsService {
 		return mergedData;
 	}
 
+<<<<<<< HEAD
 	async getOne(
 		user: User,
 		credentialId: string,
@@ -1565,6 +1655,51 @@ export class CredentialsService {
 					return { data: decryptedData, ...rest };
 				}
 				return { ...rest };
+=======
+	async getOne(user: User, credentialId: string, includeDecryptedData: boolean) {
+		if (credentialId.startsWith('default-id-')) {
+			const baseName = credentialId.replace('default-id-', '');
+			// Se contiene un underscore, il tipo reale è prima dell'underscore
+			const type = baseName.includes('_') ? baseName.split('_')[0] : baseName;
+			const suffix = baseName.includes('_') ? baseName.substring(baseName.indexOf('_') + 1) : '';
+			try {
+				const fs = require('fs');
+				const path = require('path');
+				const defaultCredsDir =
+					process.env.N8N_DEFAULT_CREDENTIALS_DIR ||
+					path.join(process.cwd(), 'default_credentials');
+				const filePath = path.join(defaultCredsDir, `${baseName}.json`);
+				if (fs.existsSync(filePath)) {
+					const rawData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+					const mockEntity = new CredentialsEntity();
+					mockEntity.id = credentialId;
+
+					const formattedSuffix = suffix ? ` (${suffix})` : '';
+					mockEntity.name = `Default ${type.replace(/^[a-z]/, (l: string) => l.toUpperCase())}${formattedSuffix}`;
+					mockEntity.type = type;
+					mockEntity.data = await this.cipher.encryptV2(rawData);
+					mockEntity.createdAt = new Date();
+					mockEntity.updatedAt = new Date();
+					mockEntity.isGlobal = true;
+
+					const { data: _, ...rest } = mockEntity;
+					const enriched: any = {
+						...rest,
+						scopes: ['credential:read', 'credential:update', 'credential:delete'],
+						isGlobal: true,
+						homeProject: null,
+						sharedWithProjects: [],
+					};
+
+					if (includeDecryptedData) {
+						const decryptedData = await this.decrypt(mockEntity);
+						return { data: decryptedData, ...enriched };
+					}
+					return { ...enriched };
+				}
+			} catch (e) {
+				// Fail silently and let standard logic handle it
+>>>>>>> develop-backup
 			}
 		}
 
@@ -1628,6 +1763,9 @@ export class CredentialsService {
 	}
 
 	async getCredentialScopes(user: User, credentialId: string): Promise<Scope[]> {
+		if (credentialId.startsWith('default-id-')) {
+			return ['credential:read', 'credential:update', 'credential:delete'];
+		}
 		const userProjectRelations = await this.projectService.getProjectRelationsForUser(user);
 		const projectIds = [...new Set(userProjectRelations.map((pr) => pr.projectId))];
 		// Postgres rejects `IN ()`; SQLite tolerates it. Skip the query when there is no project scope.

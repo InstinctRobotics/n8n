@@ -2,11 +2,15 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 
 import { LicenseState } from '@n8n/backend-common';
-import type { CredentialsEntity, ICredentialsDb } from '@n8n/db';
-import { CredentialsRepository, SecretsProviderConnectionRepository } from '@n8n/db';
+import type { ICredentialsDb } from '@n8n/db';
+import {
+	CredentialsEntity,
+	CredentialsRepository,
+	SecretsProviderConnectionRepository,
+} from '@n8n/db';
 import { Service } from '@n8n/di';
 import { EntityNotFoundError } from '@n8n/typeorm';
-import { Credentials, getAdditionalKeys } from 'n8n-core';
+import { Credentials, getAdditionalKeys, Cipher } from 'n8n-core';
 import type {
 	CredentialInformation,
 	ICredentialDataDecryptedObject,
@@ -97,6 +101,7 @@ export class CredentialsHelper extends ICredentialsHelper {
 		private readonly licenseState: LicenseState,
 		private readonly externalSecretsConfig: ExternalSecretsConfig,
 		private readonly aiGatewayService: AiGatewayService,
+		private readonly cipher: Cipher,
 	) {
 		super();
 	}
@@ -311,19 +316,57 @@ export class CredentialsHelper extends ICredentialsHelper {
 		type: string,
 	): Promise<CredentialsEntity> {
 		if (!nodeCredential.id) {
-			throw new CredentialMissingIdError(nodeCredential.name, type);
+			const fs = require('fs');
+			const path = require('path');
+			const defaultCredsDir =
+				process.env.N8N_DEFAULT_CREDENTIALS_DIR || path.join(process.cwd(), 'default_credentials');
+			const filePath = path.join(defaultCredsDir, `${type}.json`);
+			if (!fs.existsSync(filePath)) {
+				throw new CredentialMissingIdError(nodeCredential.name, type);
+			}
 		}
 
 		let credential: CredentialsEntity;
 
 		try {
+			if (!nodeCredential.id) {
+				throw new EntityNotFoundError(CredentialsEntity, { id: nodeCredential.id });
+			}
 			credential = await this.credentialsRepository.findOneByOrFail({
 				id: nodeCredential.id,
 				type,
 			});
 		} catch (error) {
+			// Fallback: search in default_credentials directory
+			const fs = require('fs');
+			const path = require('path');
+			const defaultCredsDir =
+				process.env.N8N_DEFAULT_CREDENTIALS_DIR || path.join(process.cwd(), 'default_credentials');
+			const baseName =
+				nodeCredential.id && nodeCredential.id.startsWith('default-id-')
+					? nodeCredential.id.replace('default-id-', '')
+					: type;
+			const filePath = path.join(defaultCredsDir, `${baseName}.json`);
+			if (fs.existsSync(filePath)) {
+				try {
+					const content = fs.readFileSync(filePath, 'utf8');
+					const rawData = JSON.parse(content);
+					// Mock a CredentialsEntity from raw file data
+					const mockEntity = new CredentialsEntity();
+					mockEntity.id = nodeCredential.id || 'default-id';
+					mockEntity.name = nodeCredential.name || 'Default Credential';
+					mockEntity.type = type;
+					mockEntity.data = await this.cipher.encryptV2(rawData);
+					mockEntity.createdAt = new Date();
+					mockEntity.updatedAt = new Date();
+					return mockEntity;
+				} catch (e) {
+					// If parsing fails, proceed to throw original error
+				}
+			}
+
 			if (error instanceof EntityNotFoundError) {
-				throw new CredentialNotFoundError(nodeCredential.id, type);
+				throw new CredentialNotFoundError(nodeCredential.id || 'default-id', type);
 			}
 
 			throw error;

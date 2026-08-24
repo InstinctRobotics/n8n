@@ -30,6 +30,7 @@ import {
 	MICROSOFT_TEAMS_NODE_TYPE,
 	RECOMMENDED_NODES,
 	REGULAR_NODE_CREATOR_VIEW,
+	ROBOTICS_SUBCATEGORY,
 } from '@/app/constants';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -84,16 +85,20 @@ export function subcategorizeItems(items: SimplifiedNodeType[]) {
 		// Only some subcategories are allowed
 		let subcategories: string[] = [DEFAULT_SUBCATEGORY];
 
-		const matchedSubcategories = WHITE_LISTED_SUBCATEGORIES.flatMap((category) => {
-			if (item.codex?.categories?.includes(category)) {
-				return item.codex?.subcategories?.[category] ?? [];
+		if (item.group?.includes('robotics')) {
+			subcategories = [ROBOTICS_SUBCATEGORY];
+		} else {
+			const matchedSubcategories = WHITE_LISTED_SUBCATEGORIES.flatMap((category) => {
+				if (item.codex?.categories?.includes(category)) {
+					return item.codex?.subcategories?.[category] ?? [];
+				}
+
+				return [];
+			});
+
+			if (matchedSubcategories.length > 0) {
+				subcategories = matchedSubcategories;
 			}
-
-			return [];
-		});
-
-		if (matchedSubcategories.length > 0) {
-			subcategories = matchedSubcategories;
 		}
 
 		subcategories.forEach((subcategory: string) => {
