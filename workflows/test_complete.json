@@ -1,0 +1,269 @@
+{
+  "id": "DzrvA6jCZpdaOjNL",
+  "name": "test_complete",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "position": 0.01,
+        "effort": 1,
+        "positionTolerance": 0.005,
+        "requestOptions": {}
+      },
+      "type": "CUSTOM.gripper",
+      "typeVersion": 1,
+      "position": [
+        112,
+        304
+      ],
+      "id": "b35b9ae2-c4ee-49ef-84f2-5830fdfff414",
+      "name": "Gripper"
+    },
+    {
+      "parameters": {
+        "poseInput": "="
+      },
+      "type": "CUSTOM.robot",
+      "typeVersion": 1,
+      "position": [
+        -320,
+        224
+      ],
+      "id": "0b727085-d7a0-48a6-b31d-d8d001268706",
+      "name": "Robot1"
+    },
+    {
+      "parameters": {
+        "operation": "getPose",
+        "requestOptions": {}
+      },
+      "type": "CUSTOM.vision",
+      "typeVersion": 1,
+      "position": [
+        -672,
+        144
+      ],
+      "id": "0304ccc1-e8fe-46f3-a3bc-dd9a8d2557ce",
+      "name": "Vision"
+    },
+    {
+      "parameters": {
+        "operation": "chain"
+      },
+      "type": "CUSTOM.pose",
+      "typeVersion": 1,
+      "position": [
+        -496,
+        224
+      ],
+      "id": "368d4f7a-71e2-4ad0-9a28-32a9ab09f3f4",
+      "name": "Pose"
+    },
+    {
+      "parameters": {
+        "operation": "getPose",
+        "linkName": "camera"
+      },
+      "type": "CUSTOM.robot",
+      "typeVersion": 1,
+      "position": [
+        -672,
+        304
+      ],
+      "id": "06ef26cc-5e79-4c83-85c6-91ccd494e71e",
+      "name": "Robot"
+    },
+    {
+      "parameters": {
+        "operation": "moveRelative",
+        "poseInput": "{\n  \"position\": [-0.01, 0, 0.01],\n  \"orientation\": [1, 0, 0, 0],\n  \"parent\":\"world\"\n}"
+      },
+      "type": "CUSTOM.robot",
+      "typeVersion": 1,
+      "position": [
+        -64,
+        224
+      ],
+      "id": "a5bbcdd6-1bb5-4305-94c3-04c4ce808012",
+      "name": "Robot2"
+    },
+    {
+      "parameters": {
+        "filePath": "/tmp/isaac_mesh_export_1y4ofult/MAZAK_Nexus510C_2_base.stl",
+        "objectName": "test",
+        "poseInput": "{\n  \"parent\": \"Door\",\n  \"position\": [0, 0, 0],\n  \"orientation\": [1, 0, 0, 0]\n}"
+      },
+      "type": "CUSTOM.mesh",
+      "typeVersion": 1,
+      "position": [
+        -384,
+        -48
+      ],
+      "id": "382bacee-9260-48d0-83ce-0babdc6d64b3",
+      "name": "Mesh"
+    },
+    {
+      "parameters": {
+        "operation": "getBin",
+        "requestOptions": {}
+      },
+      "type": "CUSTOM.vision",
+      "typeVersion": 1,
+      "position": [
+        -672,
+        -16
+      ],
+      "id": "ae3f49e8-8bee-4b0a-a9b3-58d01496ce64",
+      "name": "getBin"
+    },
+    {
+      "parameters": {
+        "path": "c3da3f8c-f238-496f-a024-6ab423736e25",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -992,
+        144
+      ],
+      "id": "bb000df2-4eb8-40c3-9342-d235c669ec4a",
+      "name": "Webhook",
+      "webhookId": "c3da3f8c-f238-496f-a024-6ab423736e25"
+    },
+    {
+      "parameters": {
+        "nodeId": "ns=2;i=2"
+      },
+      "type": "CUSTOM.opcUa",
+      "typeVersion": 1,
+      "position": [
+        -112,
+        -64
+      ],
+      "id": "fe500fd0-0732-4a44-bc99-c38b58dab77b",
+      "name": "OPC UA",
+      "credentials": {
+        "opcUaApi": {
+          "id": "hCT8XWu5376w48aC",
+          "name": "OPC UA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "call",
+        "methodId": "ns=2;s=OpenDoor",
+        "objectId": "ns=2;i=1",
+        "inputArguments": {
+          "arguments": []
+        }
+      },
+      "type": "CUSTOM.opcUa",
+      "typeVersion": 1,
+      "position": [
+        16,
+        64
+      ],
+      "id": "1bbe844e-bc24-49b4-93c9-87c6feb8ba05",
+      "name": "Open Door",
+      "credentials": {
+        "opcUaApi": {
+          "id": "hCT8XWu5376w48aC",
+          "name": "OPC UA account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "CUSTOM.robot",
+      "typeVersion": 1,
+      "position": [
+        -32,
+        448
+      ],
+      "id": "4dae5d53-ef79-4613-b1c2-3b4ff1f6f30b",
+      "name": "Robot3"
+    }
+  ],
+  "connections": {
+    "Vision": {
+      "main": [
+        [
+          {
+            "node": "Pose",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pose": {
+      "main": [
+        [
+          {
+            "node": "Robot1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Robot": {
+      "main": [
+        [
+          {
+            "node": "Pose",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Robot1": {
+      "main": [
+        []
+      ]
+    },
+    "Robot2": {
+      "main": [
+        []
+      ]
+    },
+    "Mesh": {
+      "main": [
+        []
+      ]
+    },
+    "getBin": {
+      "main": [
+        []
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Robot",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Vision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {}
+}

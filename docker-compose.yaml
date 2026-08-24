@@ -1,0 +1,38 @@
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    restart: always
+    network_mode: host
+    environment:
+      - N8N_CUSTOM_EXTENSIONS=/home/node/.n8n/custom
+    volumes:
+      - ./n8n_data:/home/node/.n8n
+      # Colleghiamo la cartella dei nodi compilati
+      - ./custom_nodes/dist:/home/node/.n8n/custom/n8n-nodes-robot-controller
+      - ./custom_nodes/node_modules:/home/node/.n8n/custom/node_modules
+      # Colleghiamo la cartella dei workflow condivisi
+      - ./workflows:/home/node/workflows
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: /bin/sh -c "mkdir -p /home/node/workflows && n8n import:workflow --separate --input=/home/node/workflows || true; n8n start"
+
+  n8n-local:
+    image: node:22-bookworm
+    restart: always
+    network_mode: host
+    environment:
+      - N8N_CUSTOM_EXTENSIONS=/home/node/.n8n/custom
+    working_dir: /usr/local/lib/node_modules/n8n
+    volumes:
+      - ../n8n/compiled:/usr/local/lib/node_modules/n8n
+      - ./n8n_data:/home/node/.n8n
+      # Colleghiamo la cartella dei nodi compilati
+      - ./custom_nodes/dist:/home/node/.n8n/custom/n8n-nodes-robot-controller
+      - ./custom_nodes/node_modules:/home/node/.n8n/custom/node_modules
+      # Colleghiamo la cartella dei workflow condivisi
+      - ./workflows:/home/node/workflows
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: /bin/sh -c "mkdir -p /home/node/workflows && node bin/n8n import:workflow --separate --input=/home/node/workflows || true; node bin/n8n start"
+
+

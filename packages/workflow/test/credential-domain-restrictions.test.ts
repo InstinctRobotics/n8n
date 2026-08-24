@@ -1,5 +1,3 @@
-import { ApplicationError } from '@n8n/errors';
-
 import {
 	DOMAIN_RESTRICTION_FIELDS,
 	assertCredentialAllowsUrl,
@@ -8,6 +6,7 @@ import {
 	injectDomainRestrictionFields,
 	isDomainAllowed,
 } from '../src/credential-domain-restrictions';
+import { UserError } from '../src/errors';
 import { NodeOperationError } from '../src/errors/node-operation.error';
 import type {
 	ICredentialDataDecryptedObject,
@@ -298,14 +297,14 @@ describe('assertUrlAllowed', () => {
 		).not.toThrow();
 	});
 
-	it('throws ApplicationError on a non-matching URL when no node is provided', () => {
+	it('throws UserError on a non-matching URL when no node is provided', () => {
 		expect(() =>
 			assertUrlAllowed({ url: 'https://attacker.example', allowedDomains: 'example.com' }),
-		).toThrow(ApplicationError);
+		).toThrow(UserError);
 		expect(() =>
 			assertUrlAllowed({ url: 'https://attacker.example', allowedDomains: 'example.com' }),
 		).toThrow(
-			'Domain not allowed: This credential is restricted from accessing https://attacker.example. Only the following domains are allowed: example.com',
+			'Domain not allowed: This credential is restricted from accessing attacker.example. Only the following domains are allowed: example.com',
 		);
 	});
 
@@ -317,6 +316,43 @@ describe('assertUrlAllowed', () => {
 				allowedDomains: 'example.com',
 			}),
 		).toThrow(NodeOperationError);
+	});
+
+	describe('message contents', () => {
+		it.each([
+			['the path', 'https://attacker.example/api'],
+			['a query string', 'https://attacker.example/api?api_key=sentinel-value'],
+			['a fragment', 'https://attacker.example/api#sentinel-value'],
+			['userinfo', 'https://user:sentinel-value@attacker.example/api'],
+			['userinfo and a query string', 'https://user:sentinel-value@attacker.example/api?k=v'],
+			['a value carried in the path', 'https://attacker.example/v1/sentinel-value/items'],
+		])('names only the host, omitting %s', (_label, url) => {
+			expect(() => assertUrlAllowed({ url, allowedDomains: 'example.com' })).toThrow(
+				'Domain not allowed: This credential is restricted from accessing attacker.example. Only the following domains are allowed: example.com',
+			);
+		});
+
+		it('keeps the port, which is part of the host', () => {
+			expect(() =>
+				assertUrlAllowed({
+					url: 'https://attacker.example:8443/api?api_key=sentinel-value',
+					allowedDomains: 'example.com',
+				}),
+			).toThrow(
+				'Domain not allowed: This credential is restricted from accessing attacker.example:8443. Only the following domains are allowed: example.com',
+			);
+		});
+
+		it('falls back to a redacted URL when there is no host to name', () => {
+			expect(() =>
+				assertUrlAllowed({
+					url: 'attacker.example/api?api_key=sentinel-value',
+					allowedDomains: 'example.com',
+				}),
+			).toThrow(
+				'Domain not allowed: This credential is restricted from accessing attacker.example/api. Only the following domains are allowed: example.com',
+			);
+		});
 	});
 });
 
@@ -363,7 +399,7 @@ describe('assertCredentialAllowsUrl', () => {
 					url: 'https://attacker.example',
 				}),
 			).toThrow(
-				'Domain not allowed: This credential is restricted from accessing https://attacker.example. Only the following domains are allowed: example.com',
+				'Domain not allowed: This credential is restricted from accessing attacker.example. Only the following domains are allowed: example.com',
 			);
 		});
 
@@ -629,6 +665,17 @@ describe('injectDomainRestrictionFields', () => {
 				baseCredential({ authenticate: { type: 'generic', properties: {} }, properties }),
 			);
 			expect(properties).toHaveLength(1);
+		});
+
+		it('does not inject fields when hideDomainRestrictionFields is true', () => {
+			const result = injectDomainRestrictionFields(
+				baseCredential({
+					extends: ['oAuth2Api'],
+					hideDomainRestrictionFields: true,
+				}),
+			);
+			expect(result).toHaveLength(1);
+			expect(result[0]).toBe(dummyField);
 		});
 	});
 

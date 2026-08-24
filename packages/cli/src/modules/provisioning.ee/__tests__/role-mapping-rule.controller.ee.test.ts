@@ -1,5 +1,9 @@
 import type { LicenseState } from '@n8n/backend-common';
-import { mock } from 'jest-mock-extended';
+import type { AuthenticatedRequest } from '@n8n/db';
+import type { Response } from 'express';
+import { mock } from 'vitest-mock-extended';
+
+import type { EventService } from '@/events/event.service';
 
 import { RoleMappingRuleController } from '../role-mapping-rule.controller.ee';
 import type {
@@ -7,9 +11,6 @@ import type {
 	RoleMappingRuleResponse,
 	RoleMappingRuleService,
 } from '../role-mapping-rule.service.ee';
-import type { Response } from 'express';
-import type { AuthenticatedRequest } from '@n8n/db';
-import type { EventService } from '@/events/event.service';
 
 const roleMappingRuleService = mock<RoleMappingRuleService>();
 const licenseState = mock<LicenseState>();
@@ -23,14 +24,14 @@ const controller = new RoleMappingRuleController(
 
 describe('RoleMappingRuleController', () => {
 	beforeEach(() => {
-		jest.clearAllMocks();
+		vi.clearAllMocks();
 	});
 
 	describe('list', () => {
 		const req = mock<AuthenticatedRequest>();
 		const res = mock<Response>({
-			json: jest.fn().mockReturnThis(),
-			status: jest.fn().mockReturnThis(),
+			json: vi.fn().mockReturnThis(),
+			status: vi.fn().mockReturnThis(),
 		});
 
 		const query = { skip: 0, take: 10 };
@@ -72,8 +73,8 @@ describe('RoleMappingRuleController', () => {
 	describe('create', () => {
 		const req = mock<AuthenticatedRequest>();
 		const res = mock<Response>({
-			json: jest.fn().mockReturnThis(),
-			status: jest.fn().mockReturnThis(),
+			json: vi.fn().mockReturnThis(),
+			status: vi.fn().mockReturnThis(),
 		});
 
 		const body = {
@@ -108,7 +109,7 @@ describe('RoleMappingRuleController', () => {
 			const result = await controller.create(req, res, body);
 
 			expect(result).toEqual(created);
-			expect(roleMappingRuleService.create).toHaveBeenCalledWith(body);
+			expect(roleMappingRuleService.create).toHaveBeenCalledWith(body, req.user);
 		});
 	});
 
@@ -119,8 +120,8 @@ describe('RoleMappingRuleController', () => {
 		req.params = { id: ruleId };
 		req.body = patchBody;
 		const res = mock<Response>({
-			json: jest.fn().mockReturnThis(),
-			status: jest.fn().mockReturnThis(),
+			json: vi.fn().mockReturnThis(),
+			status: vi.fn().mockReturnThis(),
 		});
 
 		it('should return 403 if provisioning is not licensed', async () => {
@@ -148,7 +149,12 @@ describe('RoleMappingRuleController', () => {
 			const result = await controller.patch(req, res, patchBody, ruleId);
 
 			expect(result).toEqual(updated);
-			expect(roleMappingRuleService.patch).toHaveBeenCalledWith(ruleId, patchBody);
+			expect(roleMappingRuleService.patch).toHaveBeenCalledWith({
+				id: ruleId,
+				dto: patchBody,
+				userId: req.user.id,
+				userEmail: req.user.email,
+			});
 		});
 	});
 
@@ -158,8 +164,8 @@ describe('RoleMappingRuleController', () => {
 		const req = mock<AuthenticatedRequest>();
 		req.params = { id: ruleId };
 		const res = mock<Response>({
-			json: jest.fn().mockReturnThis(),
-			status: jest.fn().mockReturnThis(),
+			json: vi.fn().mockReturnThis(),
+			status: vi.fn().mockReturnThis(),
 		});
 
 		it('should return 403 if provisioning is not licensed', async () => {
@@ -187,7 +193,12 @@ describe('RoleMappingRuleController', () => {
 			const result = await controller.move(req, res, moveBody, ruleId);
 
 			expect(result).toEqual(moved);
-			expect(roleMappingRuleService.move).toHaveBeenCalledWith(ruleId, moveBody.targetIndex);
+			expect(roleMappingRuleService.move).toHaveBeenCalledWith({
+				id: ruleId,
+				targetIndex: moveBody.targetIndex,
+				userId: req.user.id,
+				userEmail: req.user.email,
+			});
 		});
 	});
 
@@ -196,8 +207,8 @@ describe('RoleMappingRuleController', () => {
 		const req = mock<AuthenticatedRequest>();
 		req.params = { id: ruleId };
 		const res = mock<Response>({
-			json: jest.fn().mockReturnThis(),
-			status: jest.fn().mockReturnThis(),
+			json: vi.fn().mockReturnThis(),
+			status: vi.fn().mockReturnThis(),
 		});
 
 		it('should return 403 if provisioning is not licensed', async () => {

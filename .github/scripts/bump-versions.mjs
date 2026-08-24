@@ -5,6 +5,7 @@ import { resolve } from 'path';
 import child_process from 'child_process';
 import { promisify } from 'util';
 import assert from 'assert';
+import { getMonorepoProjects } from './pnpm-utils.mjs';
 
 const exec = promisify(child_process.exec);
 
@@ -184,13 +185,7 @@ async function bumpVersions() {
 		releaseType === 'experimental'
 			? (await exec('git rev-parse --short=8 HEAD')).stdout.trim()
 			: undefined;
-	const packages = JSON.parse(
-		(
-			await exec(
-				`pnpm ls -r --only-projects --json | jq -r '[.[] | { name: .name, version: .version, path: .path,  private: .private}]'`,
-			)
-		).stdout,
-	);
+	const packages = await getMonorepoProjects();
 
 	/** @type {Record<string, { path: string, isDirty: boolean, version: string, nextVersion?: string }>} */
 	const packageMap = {};
@@ -260,6 +255,8 @@ async function bumpVersions() {
 
 	propagateDirtyTransitively(packageMap, depsByPackage);
 
+	// Always mark the `cli` package as dirty, so it's version always gets incremented
+	packageMap["n8n"].isDirty = true;
 	// Keep the monorepo version up to date with the released version
 	packageMap['monorepo-root'].version = packageMap['n8n'].version;
 
@@ -288,5 +285,10 @@ async function bumpVersions() {
 
 // only run when executed directly, not when imported by tests
 if (import.meta.url === `file://${process.argv[1]}`) {
-	bumpVersions();
+	try {
+		await bumpVersions();
+	} catch (error) {
+		console.error(error);
+		process.exit(1);
+	}
 }

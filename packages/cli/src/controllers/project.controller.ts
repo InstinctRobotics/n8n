@@ -22,7 +22,6 @@ import {
 } from '@n8n/decorators';
 import { combineScopes, getAuthPrincipalScopes, hasGlobalScope } from '@n8n/permissions';
 import type { Scope } from '@n8n/permissions';
-// eslint-disable-next-line n8n-local-rules/misplaced-n8n-typeorm-import
 import { In, Not } from '@n8n/typeorm';
 import { Response } from 'express';
 
@@ -214,6 +213,8 @@ export class ProjectController {
 		return {
 			...project,
 			scopes,
+			// Personal projects have a single owner and are never subject to managed team roles.
+			rolesManaged: false,
 		};
 	}
 
@@ -224,10 +225,12 @@ export class ProjectController {
 		_res: Response,
 		@Param('projectId') projectId: string,
 	): Promise<ProjectRequest.ProjectWithRelations> {
-		const [{ id, name, icon, type, description }, relations] = await Promise.all([
-			this.projectsService.getProject(projectId),
-			this.projectsService.getProjectRelations(projectId),
-		]);
+		const [{ id, name, icon, type, description, customTelemetryTags }, relations, rolesManaged] =
+			await Promise.all([
+				this.projectsService.getProject(projectId),
+				this.projectsService.getProjectRelations(projectId),
+				this.provisioningService.isProjectRoleManaged(),
+			]);
 		const myRelation = relations.find((r) => r.userId === req.user.id);
 
 		return {
@@ -236,6 +239,7 @@ export class ProjectController {
 			icon,
 			type,
 			description,
+			customTelemetryTags,
 			relations: relations.map((r) => ({
 				id: r.user.id,
 				email: r.user.email,
@@ -249,28 +253,47 @@ export class ProjectController {
 					...(myRelation ? { project: myRelation.role.scopes.map((scope) => scope.slug) } : {}),
 				}),
 			],
+			rolesManaged,
 		};
 	}
 
 	@Patch('/:projectId')
 	@ProjectScope('project:update')
 	async updateProject(
-		_req: AuthenticatedRequest,
+		req: AuthenticatedRequest,
 		_res: Response,
 		@Body payload: UpdateProjectDto,
 		@Param('projectId') projectId: string,
 	) {
 		await this.projectsService.updateProject(projectId, payload);
+		this.eventService.emit('team-project-updated', {
+			userId: req.user.id,
+			role: req.user.role.slug,
+			projectId,
+			...(payload.customTelemetryTags !== undefined
+				? { otelProjectCustomTagsCount: payload.customTelemetryTags.length }
+				: {}),
+		});
+	}
+
+	/** Throws when project roles are provisioned automatically, so manual membership changes are disallowed. */
+	private async assertProjectRolesNotManaged() {
+		if (await this.provisioningService.isProjectRoleManaged()) {
+			throw new ForbiddenError(
+				'Project roles are managed automatically and cannot be changed manually',
+			);
+		}
 	}
 
 	@Post('/:projectId/users')
-	@ProjectScope('project:update')
+	@ProjectScope('project:manageMembers')
 	async addProjectUsers(
 		req: AuthenticatedRequest,
 		res: Response,
 		@Param('projectId') projectId: string,
 		@Body payload: AddUsersToProjectDto,
 	) {
+		await this.assertProjectRolesNotManaged();
 		try {
 			const { added, conflicts, project } =
 				await this.projectsService.addUsersWithConflictSemantics(projectId, payload.relations);
@@ -308,7 +331,7 @@ export class ProjectController {
 	}
 
 	@Patch('/:projectId/users/:userId')
-	@ProjectScope('project:update')
+	@ProjectScope('project:manageMembers')
 	async changeProjectUserRole(
 		req: AuthenticatedRequest,
 		res: Response,
@@ -316,11 +339,7 @@ export class ProjectController {
 		@Param('userId') userId: string,
 		@Body body: ChangeUserRoleInProject,
 	) {
-		if (await this.provisioningService.isProjectRoleManaged()) {
-			throw new ForbiddenError(
-				'Project roles are managed automatically and cannot be changed manually',
-			);
-		}
+		await this.assertProjectRolesNotManaged();
 
 		try {
 			await this.projectsService.changeUserRoleInProject(projectId, userId, body.role);
@@ -341,13 +360,14 @@ export class ProjectController {
 	}
 
 	@Delete('/:projectId/users/:userId')
-	@ProjectScope('project:update')
+	@ProjectScope('project:manageMembers')
 	async deleteProjectUser(
 		req: AuthenticatedRequest,
 		res: Response,
 		@Param('projectId') projectId: string,
 		@Param('userId') userId: string,
 	) {
+		await this.assertProjectRolesNotManaged();
 		await this.projectsService.deleteUserFromProject(projectId, userId);
 		const relations = await this.projectsService.getProjectRelations(projectId);
 		this.eventService.emit('team-project-updated', {

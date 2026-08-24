@@ -145,7 +145,7 @@ export class IsolatedVmBridge implements RuntimeBridge {
 
 		this.initialized = true;
 
-		this.logger.info('[IsolatedVmBridge] Initialized successfully');
+		this.logger.debug('[IsolatedVmBridge] Initialized successfully');
 	}
 
 	/**
@@ -173,7 +173,7 @@ export class IsolatedVmBridge implements RuntimeBridge {
 			// This makes all exported globals available (DateTime, extend, extendOptional, SafeObject, SafeError, createDeepLazyProxy, buildContext)
 			await this.context.eval(runtimeBundle);
 
-			this.logger.info('[IsolatedVmBridge] Runtime bundle loaded');
+			this.logger.debug('[IsolatedVmBridge] Runtime bundle loaded');
 
 			// Verify vendor libraries loaded correctly
 			const hasDateTime = await this.context.eval('typeof DateTime !== "undefined"');
@@ -185,7 +185,7 @@ export class IsolatedVmBridge implements RuntimeBridge {
 				);
 			}
 
-			this.logger.info('[IsolatedVmBridge] Vendor libraries verified successfully');
+			this.logger.debug('[IsolatedVmBridge] Vendor libraries verified successfully');
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
 			throw new Error(`Failed to load runtime bundle: ${errorMessage}`);
@@ -222,7 +222,7 @@ export class IsolatedVmBridge implements RuntimeBridge {
 				);
 			}
 
-			this.logger.info('[IsolatedVmBridge] Proxy system verified successfully');
+			this.logger.debug('[IsolatedVmBridge] Proxy system verified successfully');
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
 			throw new Error(`Failed to verify proxy system: ${errorMessage}`);
@@ -273,11 +273,11 @@ export class IsolatedVmBridge implements RuntimeBridge {
 			}
 		`);
 
-		this.logger.info('[IsolatedVmBridge] Error handler injected successfully');
+		this.logger.debug('[IsolatedVmBridge] Error handler injected successfully');
 	}
 
 	/**
-	 * Create an ivm.Reference callback for getting value/metadata at a path.
+	 * Create an ivm.Callback for getting value/metadata at a path.
 	 *
 	 * Used by createDeepLazyProxy when accessing properties. Returns metadata
 	 * markers for arrays and objects, or the primitive value directly.
@@ -291,8 +291,8 @@ export class IsolatedVmBridge implements RuntimeBridge {
 	 * @param data - Current workflow data to use for callback responses
 	 * @private
 	 */
-	private createGetValueAtPathRef(data: WorkflowData): ivm.Reference {
-		return new (getIvm().Reference)((path: string[]) => {
+	private createGetValueAtPathRef(data: WorkflowData): ivm.Callback {
+		return new (getIvm().Callback)((path: string[]) => {
 			try {
 				// Navigate to value
 				// Special-case: paths starting with ['$item', index] call data.$item(index)
@@ -338,6 +338,12 @@ export class IsolatedVmBridge implements RuntimeBridge {
 					};
 				}
 
+				// Dates have no enumerable own keys; pass through instead of
+				// marshaling as an empty object.
+				if (value instanceof Date) {
+					return value;
+				}
+
 				// Handle objects - return metadata with keys
 				if (value !== null && typeof value === 'object') {
 					return {
@@ -355,15 +361,15 @@ export class IsolatedVmBridge implements RuntimeBridge {
 	}
 
 	/**
-	 * Create an ivm.Reference callback for getting array elements at an index.
+	 * Create an ivm.Callback for getting array elements at an index.
 	 *
 	 * Used by array proxy when accessing numeric indices.
 	 *
 	 * @param data - Current workflow data to use for callback responses
 	 * @private
 	 */
-	private createGetArrayElementRef(data: WorkflowData): ivm.Reference {
-		return new (getIvm().Reference)((path: string[], index: number) => {
+	private createGetArrayElementRef(data: WorkflowData): ivm.Callback {
+		return new (getIvm().Callback)((path: string[], index: number) => {
 			try {
 				// Navigate to array
 				// Special-case: paths starting with ['$item', index] call data.$item(index)
@@ -394,7 +400,26 @@ export class IsolatedVmBridge implements RuntimeBridge {
 					return undefined;
 				}
 
+				// Only genuine array indices are reachable; anything else (e.g.
+				// 'constructor', '__lookupGetter__') would read off the prototype
+				// chain and could leak a host function reference across the boundary.
+				if (!Number.isInteger(index) || index < 0) {
+					return undefined;
+				}
+
 				const element = arr[index];
+
+				// Functions are never reachable through the data surface — mirror the
+				// guard in getValueAtPath so a host callable can't cross the boundary.
+				if (typeof element === 'function') {
+					return undefined;
+				}
+
+				// Dates have no enumerable own keys; pass through instead of
+				// marshaling as an empty object.
+				if (element instanceof Date) {
+					return element;
+				}
 
 				// If element is object/array, return metadata
 				if (element !== null && typeof element === 'object') {
@@ -437,11 +462,17 @@ export class IsolatedVmBridge implements RuntimeBridge {
 	 * in this switch; the `type` field selects a static branch in source,
 	 * not a property lookup on a runtime object.
 	 *
+	 * Return-value note: handlers must return plain, structured-clone-able
+	 * data. Results cross into the isolate through an ivm.Callback, which copies
+	 * them via the structured-clone algorithm — return JSON-shaped values, not
+	 * isolated-vm objects (`Reference`/`ExternalCopy`) or other non-cloneable
+	 * values.
+	 *
 	 * @param data - Current workflow data
 	 * @private
 	 */
-	private createCallHostRef(data: WorkflowData): ivm.Reference {
-		return new (getIvm().Reference)((rawMsg: unknown) => {
+	private createCallHostRef(data: WorkflowData): ivm.Callback {
+		return new (getIvm().Callback)((rawMsg: unknown) => {
 			try {
 				const msg = bridgeMessageSchema.parse(rawMsg);
 				switch (msg.type) {
@@ -670,7 +701,7 @@ export class IsolatedVmBridge implements RuntimeBridge {
 	 * Execute JavaScript code in the isolated context.
 	 *
 	 * Flow:
-	 * 1. Create three ivm.Reference callbacks scoped to the current data:
+	 * 1. Create three ivm.Callback instances scoped to the current data:
 	 *    `getValueAtPath`, `getArrayElement`, `callHost`.
 	 * 2. Use evalClosureSync to run the code in a closure where `$0`/`$1`/`$2`
 	 *    are the callback references — no global mutable state.
@@ -690,6 +721,10 @@ export class IsolatedVmBridge implements RuntimeBridge {
 			throw new Error('Bridge not initialized. Call initialize() first.');
 		}
 
+		// Host callbacks are ivm.Callback instances: inside the isolate they
+		// arrive as plain functions with structured-clone marshaling, so the
+		// runtime invokes them directly. Callbacks are GC-managed; there is no
+		// release() to call in `finally`.
 		const getValueAtPath = this.createGetValueAtPathRef(data);
 		const getArrayElement = this.createGetArrayElementRef(data);
 		const callHost = this.createCallHostRef(data);
@@ -771,10 +806,6 @@ try {
 				);
 			}
 			throw new Error(`Expression evaluation failed: ${errorMessage}`);
-		} finally {
-			getValueAtPath.release();
-			getArrayElement.release();
-			callHost.release();
 		}
 	}
 
@@ -817,7 +848,7 @@ try {
 		this.disposed = true;
 		this.initialized = false;
 
-		this.logger.info('[IsolatedVmBridge] Disposed');
+		this.logger.debug('[IsolatedVmBridge] Disposed');
 	}
 
 	/**

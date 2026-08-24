@@ -18,10 +18,15 @@ process.env.FORCE_COLOR = '1';
 // #region ===== Helper Functions =====
 
 /**
- * Get Docker platform string based on host architecture
+ * Get Docker platform string based on host architecture or environment override
  * @returns {string} Platform string (e.g., 'linux/amd64')
  */
 function getDockerPlatform() {
+	// Allow environment variable override for cross-platform builds
+	if (process.env.DOCKER_PLATFORM) {
+		return process.env.DOCKER_PLATFORM;
+	}
+
 	const arch = os.arch();
 	const dockerArch = {
 		x64: 'amd64',
@@ -137,7 +142,9 @@ const rootDir = isInScriptsDir ? path.join(__dirname, '..') : __dirname;
 
 const noCache = process.env.DOCKER_BUILD_NO_CACHE === 'true';
 const withBaseImage = process.env.DOCKER_BUILD_BASE_IMAGE === 'true';
-const nodeVersion = process.env.NODE_VERSION || '24.15.0';
+// Keep in sync with NODE_VERSION in .github/workflows/docker-build-push.yml,
+// which is what the published images are actually built with.
+const nodeVersion = process.env.NODE_VERSION || '26.5.1';
 
 const config = {
 	base: {

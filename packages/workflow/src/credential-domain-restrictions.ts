@@ -1,5 +1,4 @@
-import { ApplicationError } from '@n8n/errors';
-
+import { UserError } from './errors';
 import { NodeOperationError } from './errors/node-operation.error';
 import type {
 	ICredentialDataDecryptedObject,
@@ -21,7 +20,7 @@ export const DOMAIN_RESTRICTION_FIELDS: INodeProperties[] = [
 			{
 				name: 'All',
 				value: 'all',
-				description: 'Allow all requests when used in the HTTP Request node',
+				description: 'Allow all requests when used in the HTTP Request or GraphQL node',
 			},
 			{
 				name: 'Specific Domains',
@@ -31,11 +30,12 @@ export const DOMAIN_RESTRICTION_FIELDS: INodeProperties[] = [
 			{
 				name: 'None',
 				value: 'none',
-				description: 'Block all requests when used in the HTTP Request node',
+				description: 'Block all requests when used in the HTTP Request or GraphQL node',
 			},
 		],
 		default: 'all',
-		description: 'Control which domains this credential can be used with in HTTP Request nodes',
+		description:
+			'Control which domains this credential can be used with in HTTP Request or GraphQL nodes',
 	},
 	{
 		displayName: 'Allowed Domains',
@@ -73,6 +73,9 @@ function readAllowedDomainsField(
 }
 
 function shouldInjectDomainRestrictionFields(credentialType: ICredentialType): boolean {
+	if (credentialType.hideDomainRestrictionFields) {
+		return false;
+	}
 	return (
 		credentialType.authenticate !== undefined ||
 		credentialType.genericAuth === true ||
@@ -130,7 +133,22 @@ export function isDomainAllowed(options: { url: string; allowedDomains: string }
 	return false;
 }
 
-/** Throws `ApplicationError` when `node` is omitted, so callers without an `INode` (axios helper) get a wrappable error. */
+/**
+ * The host alone — it is all the allowlist decision uses, and the only part the
+ * reader needs in order to act on the error. Dropping the rest keeps per-request
+ * values out of a message that is persisted with the execution.
+ */
+function toDisplayHost(url: string): string {
+	try {
+		return new URL(url).host;
+	} catch {
+		// No host to name. Fall back to the URL without the parts that carry
+		// per-request values: cut at the first `?`/`#` and drop any `user:pass@`.
+		return url.split(/[?#]/)[0].replace(/^([A-Za-z][\w+.-]*:\/\/)[^/@]*@/, '$1');
+	}
+}
+
+/** Throws `UserError` when `node` is omitted, so callers without an `INode` (axios helper) get a wrappable error. */
 export function assertUrlAllowed(options: {
 	url: string;
 	allowedDomains?: string;
@@ -140,8 +158,8 @@ export function assertUrlAllowed(options: {
 	if (!allowedDomains) return;
 	if (isDomainAllowed({ url, allowedDomains })) return;
 
-	const message = `Domain not allowed: This credential is restricted from accessing ${url}. Only the following domains are allowed: ${allowedDomains}`;
-	throw node ? new NodeOperationError(node, message) : new ApplicationError(message);
+	const message = `Domain not allowed: This credential is restricted from accessing ${toDisplayHost(url)}. Only the following domains are allowed: ${allowedDomains}`;
+	throw node ? new NodeOperationError(node, message) : new UserError(message);
 }
 
 /** Returns the allowlist for forwarding to per-hop redirect checks; `undefined` means allow-all. */
