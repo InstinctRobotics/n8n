@@ -2079,6 +2079,10 @@ export interface INodeType {
 	supplyData?(this: ISupplyDataFunctions, itemIndex: number): Promise<SupplyData>;
 	execute?(this: IExecuteFunctions, response?: EngineResponse): Promise<NodeOutput>;
 	/**
+	 * A function called when workflow execution is manually cancelled or stopped.
+	 */
+	onStop?(this: IExecuteFunctions): Promise<void>;
+	/**
 	 * A function called when a node receives a chat message. Allows it to react
 	 * to the message before it gets executed.
 	 */
@@ -2316,7 +2320,14 @@ export type IconRef = `fa:${string}` | `node:${string}`;
 export type IconFile = `file:${string}.png` | `file:${string}.svg` | ExpressionString;
 export type Icon = IconRef | Themed<IconFile> | IconFile;
 
-type NodeGroupType = 'input' | 'output' | 'organization' | 'schedule' | 'transform' | 'trigger' | 'robotics';
+type NodeGroupType =
+	| 'input'
+	| 'output'
+	| 'organization'
+	| 'schedule'
+	| 'transform'
+	| 'trigger'
+	| 'robotics';
 
 export interface INodeTypeBaseDescription {
 	displayName: string;

@@ -294,14 +294,22 @@ export class CredentialsService {
 				const files = fs.readdirSync(defaultCredsDir);
 				for (const file of files) {
 					if (file.endsWith('.json')) {
-						const type = file.replace('.json', '');
+						const baseName = file.replace('.json', '');
+						// Se il file contiene un underscore (es: postgres_db_prj003.json), il tipo reale è la prima parte
+						const type = baseName.includes('_') ? baseName.split('_')[0] : baseName;
+						const suffix = baseName.includes('_')
+							? baseName.substring(baseName.indexOf('_') + 1)
+							: '';
+
 						const rawData = JSON.parse(fs.readFileSync(path.join(defaultCredsDir, file), 'utf8'));
 
-						// Only inject if it's not already in the db results to avoid duplicates
-						if (!credentials.some((c) => c.type === type)) {
+						// Evitiamo duplicati basandoci sul nome file unico (baseName)
+						if (!credentials.some((c) => c.id === `default-id-${baseName}`)) {
 							const mockEntity = new CredentialsEntity();
-							mockEntity.id = `default-id-${type}`;
-							mockEntity.name = `Default ${type.replace(/^[a-z]/, (l: string) => l.toUpperCase())}`;
+							mockEntity.id = `default-id-${baseName}`;
+
+							const formattedSuffix = suffix ? ` (${suffix})` : '';
+							mockEntity.name = `Default ${type.replace(/^[a-z]/, (l: string) => l.toUpperCase())}${formattedSuffix}`;
 							mockEntity.type = type;
 							mockEntity.data = await this.cipher.encryptV2(rawData);
 							mockEntity.createdAt = new Date();
@@ -599,7 +607,15 @@ export class CredentialsService {
 			this.roleService.addScopes(c, user, projectRelations),
 		);
 
-		return [...enrichedDb, ...mockCredentials];
+		// Assegna gli scope di default anche alle credenziali mock
+		const enrichedMock = mockCredentials.map((c) => {
+			if (!(c as any).scopes) {
+				(c as any).scopes = ['credential:read', 'credential:update', 'credential:delete'];
+			}
+			return c;
+		});
+
+		return [...enrichedDb, ...enrichedMock];
 	}
 
 	private async addDecryptedDataToCredentials(
@@ -840,14 +856,14 @@ export class CredentialsService {
 	 */
 	async decrypt(credential: CredentialsEntity, includeRawData = false) {
 		if (credential.id && credential.id.startsWith('default-id-')) {
-			const type = credential.id.replace('default-id-', '');
+			const baseName = credential.id.replace('default-id-', '');
 			try {
 				const fs = require('fs');
 				const path = require('path');
 				const defaultCredsDir =
 					process.env.N8N_DEFAULT_CREDENTIALS_DIR ||
 					path.join(process.cwd(), 'default_credentials');
-				const filePath = path.join(defaultCredsDir, `${type}.json`);
+				const filePath = path.join(defaultCredsDir, `${baseName}.json`);
 				if (fs.existsSync(filePath)) {
 					const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
 					if (includeRawData) {
@@ -1243,19 +1259,24 @@ export class CredentialsService {
 
 	async getOne(user: User, credentialId: string, includeDecryptedData: boolean) {
 		if (credentialId.startsWith('default-id-')) {
-			const type = credentialId.replace('default-id-', '');
+			const baseName = credentialId.replace('default-id-', '');
+			// Se contiene un underscore, il tipo reale è prima dell'underscore
+			const type = baseName.includes('_') ? baseName.split('_')[0] : baseName;
+			const suffix = baseName.includes('_') ? baseName.substring(baseName.indexOf('_') + 1) : '';
 			try {
 				const fs = require('fs');
 				const path = require('path');
 				const defaultCredsDir =
 					process.env.N8N_DEFAULT_CREDENTIALS_DIR ||
 					path.join(process.cwd(), 'default_credentials');
-				const filePath = path.join(defaultCredsDir, `${type}.json`);
+				const filePath = path.join(defaultCredsDir, `${baseName}.json`);
 				if (fs.existsSync(filePath)) {
 					const rawData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
 					const mockEntity = new CredentialsEntity();
 					mockEntity.id = credentialId;
-					mockEntity.name = `Default ${type.replace(/^[a-z]/, (l: string) => l.toUpperCase())}`;
+
+					const formattedSuffix = suffix ? ` (${suffix})` : '';
+					mockEntity.name = `Default ${type.replace(/^[a-z]/, (l: string) => l.toUpperCase())}${formattedSuffix}`;
 					mockEntity.type = type;
 					mockEntity.data = await this.cipher.encryptV2(rawData);
 					mockEntity.createdAt = new Date();

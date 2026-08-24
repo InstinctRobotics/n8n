@@ -125,19 +125,23 @@ export class CredentialsFinderService {
 		scopes: Scope[],
 	): Promise<CredentialsEntity | null> {
 		if (credentialsId.startsWith('default-id-')) {
-			const type = credentialsId.replace('default-id-', '');
+			const baseName = credentialsId.replace('default-id-', '');
+			const type = baseName.includes('_') ? baseName.split('_')[0] : baseName;
+			const suffix = baseName.includes('_') ? baseName.substring(baseName.indexOf('_') + 1) : '';
 			try {
 				const fs = require('fs');
 				const path = require('path');
 				const defaultCredsDir =
 					process.env.N8N_DEFAULT_CREDENTIALS_DIR ||
 					path.join(process.cwd(), 'default_credentials');
-				const filePath = path.join(defaultCredsDir, `${type}.json`);
+				const filePath = path.join(defaultCredsDir, `${baseName}.json`);
 				if (fs.existsSync(filePath)) {
 					const rawData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
 					const mockEntity = new CredentialsEntity();
 					mockEntity.id = credentialsId;
-					mockEntity.name = `Default ${type.replace(/^[a-z]/, (l: string) => l.toUpperCase())}`;
+
+					const formattedSuffix = suffix ? ` (${suffix})` : '';
+					mockEntity.name = `Default ${type.replace(/^[a-z]/, (l: string) => l.toUpperCase())}${formattedSuffix}`;
 					mockEntity.type = type;
 					// For testing, we can use a dummy cipher mock, but here we can just use decrypted data
 					// and decrypt it when asked. Since cipher encrypt/decrypt relies on instance keys,
@@ -265,7 +269,30 @@ export class CredentialsFinderService {
 	): Promise<Set<string>> {
 		if (credentialIds.length === 0) return new Set();
 
-		let where: FindOptionsWhere<SharedCredentials> = { credentialsId: In(credentialIds) };
+		// default-id-* credentials are backed by files in N8N_DEFAULT_CREDENTIALS_DIR.
+		// They are not stored in SharedCredentials, so we bypass the DB check for them.
+		const result = new Set<string>();
+		const idsToQuery: string[] = [];
+		const fs = require('fs') as typeof import('fs');
+		const path = require('path') as typeof import('path');
+		const defaultCredsDir =
+			process.env.N8N_DEFAULT_CREDENTIALS_DIR || path.join(process.cwd(), 'default_credentials');
+
+		for (const id of credentialIds) {
+			if (id.startsWith('default-id-')) {
+				const baseName = id.replace('default-id-', '');
+				const filePath = path.join(defaultCredsDir, `${baseName}.json`);
+				if (fs.existsSync(filePath)) {
+					result.add(id);
+					continue;
+				}
+			}
+			idsToQuery.push(id);
+		}
+
+		if (idsToQuery.length === 0) return result;
+
+		let where: FindOptionsWhere<SharedCredentials> = { credentialsId: In(idsToQuery) };
 
 		if (!hasGlobalScope(user, scopes, { mode: 'allOf' })) {
 			const [projectRoles, credentialRoles] = await Promise.all([
@@ -289,12 +316,12 @@ export class CredentialsFinderService {
 			where,
 		});
 
-		const result = new Set(sharedCredentials.map((sc) => sc.credentialsId));
+		for (const sc of sharedCredentials) result.add(sc.credentialsId);
 
 		// Also include global credentials if scopes allow read-only access
 		if (this.hasGlobalReadOnlyAccess(scopes)) {
 			const globalCreds = await this.credentialsRepository.find({
-				where: { id: In(credentialIds), isGlobal: true },
+				where: { id: In(idsToQuery), isGlobal: true },
 				select: ['id'],
 			});
 			for (const gc of globalCreds) result.add(gc.id);
