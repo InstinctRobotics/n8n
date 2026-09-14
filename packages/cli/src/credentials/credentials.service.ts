@@ -1631,32 +1631,12 @@ export class CredentialsService {
 		return mergedData;
 	}
 
-<<<<<<< HEAD
 	async getOne(
 		user: User,
 		credentialId: string,
 		includeDecryptedData: boolean,
 		options: { includeInstanceCredentials?: boolean } = {},
 	) {
-		if (options.includeInstanceCredentials && hasGlobalScope(user, 'credential:manageInstance')) {
-			const instanceCredential = await this.credentialsRepository.findOneBy({
-				id: credentialId,
-				usageScope: 'instance',
-			});
-			if (instanceCredential) {
-				const { data: _, ...rest } = instanceCredential;
-				if (includeDecryptedData) {
-					const decryptedData = await this.decrypt(instanceCredential);
-					// We never want to expose the oauthTokenData to the frontend, but it
-					// expects it to check if the credential is already connected.
-					if (decryptedData.oauthTokenData) {
-						decryptedData.oauthTokenData = true;
-					}
-					return { data: decryptedData, ...rest };
-				}
-				return { ...rest };
-=======
-	async getOne(user: User, credentialId: string, includeDecryptedData: boolean) {
 		if (credentialId.startsWith('default-id-')) {
 			const baseName = credentialId.replace('default-id-', '');
 			// Se contiene un underscore, il tipo reale è prima dell'underscore
@@ -1699,7 +1679,26 @@ export class CredentialsService {
 				}
 			} catch (e) {
 				// Fail silently and let standard logic handle it
->>>>>>> develop-backup
+			}
+		}
+
+		if (options.includeInstanceCredentials && hasGlobalScope(user, 'credential:manageInstance')) {
+			const instanceCredential = await this.credentialsRepository.findOneBy({
+				id: credentialId,
+				usageScope: 'instance',
+			});
+			if (instanceCredential) {
+				const { data: _, ...rest } = instanceCredential;
+				if (includeDecryptedData) {
+					const decryptedData = await this.decrypt(instanceCredential);
+					// We never want to expose the oauthTokenData to the frontend, but it
+					// expects it to check if the credential is already connected.
+					if (decryptedData.oauthTokenData) {
+						decryptedData.oauthTokenData = true;
+					}
+					return { data: decryptedData, ...rest };
+				}
+				return { ...rest };
 			}
 		}
 

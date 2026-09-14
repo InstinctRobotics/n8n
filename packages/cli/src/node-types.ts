@@ -48,7 +48,10 @@ export class NodeTypes implements INodeTypes {
 		const nodeType = this.loadNodesAndCredentials.getNode(nodeTypeName);
 		const { description } = NodeHelpers.getVersionedNodeType(nodeType.type, version);
 
-		return { description: { ...description }, sourcePath: nodeType.sourcePath };
+		return {
+			description: { ...description, name: nodeTypeName },
+			sourcePath: nodeType.sourcePath,
+		};
 	}
 
 	/**

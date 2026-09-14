@@ -2693,7 +2693,8 @@ type NodeGroupType =
 	| 'schedule'
 	| 'transform'
 	| 'trigger'
-	| 'robotics';
+	| 'robotics'
+	| 'vision';
 
 export interface INodeTypeBaseDescription {
 	displayName: string;

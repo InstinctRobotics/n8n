@@ -58,6 +58,7 @@ import {
 	TEMPLATE_CATEGORY_AI,
 	TRANSFORM_DATA_SUBCATEGORY,
 	ROBOTICS_SUBCATEGORY,
+	VISION_SUBCATEGORY,
 	TRIGGER_NODE_CREATOR_VIEW,
 	WEBHOOK_NODE_TYPE,
 	XML_NODE_TYPE,
@@ -620,6 +621,15 @@ export function RegularView(nodes: SimplifiedNodeType[]) {
 				properties: {
 					title: ROBOTICS_SUBCATEGORY,
 					icon: 'robot',
+				},
+			},
+			{
+				type: 'subcategory',
+				key: VISION_SUBCATEGORY,
+				category: VISION_SUBCATEGORY,
+				properties: {
+					title: VISION_SUBCATEGORY,
+					icon: 'eye',
 				},
 			},
 			{
