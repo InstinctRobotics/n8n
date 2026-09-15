@@ -11,6 +11,7 @@ import type { IBinaryKeyData } from 'n8n-workflow';
 import { BINARY_MODE_COMBINED } from 'n8n-workflow';
 import { N8nButton, N8nLink, N8nNotice, N8nText } from '@n8n/design-system';
 import { computed } from 'vue';
+import BinaryDataDisplayEmbed from './BinaryDataDisplayEmbed.vue';
 const { binaryData } = defineProps<{ binaryData: IBinaryKeyData[] }>();
 import { usePostHog } from '@/app/stores/posthog.store';
 import { EXECUTION_LOGIC_V2_EXPERIMENT } from '@/app/constants/experiments';
@@ -90,6 +91,9 @@ function openWorkflowSettings() {
 					<div :data-test-id="'ndv-binary-data_' + index">
 						<div :class="$style.binaryHeader">
 							{{ key }}
+						</div>
+						<div v-if="isViewable(index, key)" :class="$style.inlinePreview">
+							<BinaryDataDisplayEmbed :binary-data="data" />
 						</div>
 						<div v-if="data.fileName">
 							<div>
@@ -236,5 +240,25 @@ function openWorkflowSettings() {
 
 .info {
 	margin: var(--spacing--2xs) 0;
+}
+
+.inlinePreview {
+	margin-top: var(--spacing--2xs);
+	margin-bottom: var(--spacing--2xs);
+	max-height: 250px;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	overflow: hidden;
+	border-radius: var(--radius);
+	background-color: var(--color--foreground--shade-1);
+	padding: var(--spacing--2xs);
+
+	img,
+	video {
+		max-height: 240px;
+		max-width: 100%;
+		object-fit: contain;
+	}
 }
 </style>
