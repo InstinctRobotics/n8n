@@ -643,6 +643,9 @@ export class Start extends BaseCommand<z.infer<typeof flagsSchema>> {
 						}
 						// Assign to the folder
 						workflowData.parentFolderId = folder.id;
+						delete workflowData.activeVersion;
+						delete workflowData.shared;
+						workflowData.activeVersionId = null;
 						workflowsToImport.push(workflowData);
 					} catch (err: any) {
 						this.logger.error(`Error parsing workflow file ${file}: ${err.message}`);
