@@ -178,7 +178,6 @@ export class CredentialsFinderService {
 				// Fail silently
 			}
 		}
-		}
 
 		let where: FindOptionsWhere<SharedCredentials> = { credentialsId };
 

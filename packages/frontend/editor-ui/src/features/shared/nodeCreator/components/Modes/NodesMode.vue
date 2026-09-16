@@ -349,7 +349,7 @@ registerKeyHook('MainViewArrowLeft', {
 
 		<!-- Main Node Items -->
 		<ItemsRenderer
-			v-memo="[activeViewStack.search]"
+			v-memo="[activeViewStack.uuid, activeViewStack.search]"
 			:elements="activeViewStack.items"
 			:class="$style.items"
 			@selected="onSelected"
