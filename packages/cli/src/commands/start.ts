@@ -18,6 +18,9 @@ import {
 	SharedCredentials,
 } from '@n8n/db';
 import { ImportService } from '@/services/import.service';
+import { OwnershipService } from '@/services/ownership.service';
+import { ExecutionService } from '@/executions/execution.service';
+import { WorkflowRunner } from '@/workflow-runner';
 import { Command } from '@n8n/decorators';
 import { Container } from '@n8n/di';
 import { McpServer } from '@n8n/n8n-nodes-langchain/mcp/core';
@@ -26,7 +29,7 @@ import glob from 'fast-glob';
 import { createReadStream, createWriteStream, existsSync } from 'fs';
 import { mkdir } from 'fs/promises';
 import { BinaryDataConfig, Cipher } from 'n8n-core';
-import { jsonParse, sleep, type IWorkflowExecutionDataProcess } from 'n8n-workflow';
+import { jsonParse, type IWorkflowExecutionDataProcess } from 'n8n-workflow';
 import path from 'path';
 import replaceStream from 'replacestream';
 import { pipeline } from 'stream/promises';
@@ -543,7 +546,7 @@ export class Start extends BaseCommand<z.infer<typeof flagsSchema>> {
 	 * enqueue any remaining ones until we have spare concurrency capacity again.
 	 */
 	private async runEnqueuedExecutions() {
-		const executions = await Container.get(ExecutionService).findAllEnqueuedExecutions();
+		const { executions } = await Container.get(ExecutionService).findAllEnqueuedExecutions();
 
 		if (executions.length === 0) return;
 
@@ -569,7 +572,10 @@ export class Start extends BaseCommand<z.infer<typeof flagsSchema>> {
 			});
 
 			// do not block - each execution either runs concurrently or is queued
-			void workflowRunner.run(data, undefined, false, execution.id);
+			void workflowRunner.run(data, undefined, false, {
+				executionId: execution.id,
+				expectedStatus: 'new',
+			});
 		}
 	}
 
@@ -657,7 +663,7 @@ export class Start extends BaseCommand<z.infer<typeof flagsSchema>> {
 						`Importing ${workflowsToImport.length} workflows for project "${projectName}" into folder "${projectName}"...`,
 					);
 					// Import workflows
-					await importService.importWorkflows(workflowsToImport, personalProject.id, {
+					await importService.importWorkflows(workflowsToImport, personalProject.id, owner.id, {
 						activeState: 'false',
 					});
 

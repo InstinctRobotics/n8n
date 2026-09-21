@@ -573,7 +573,7 @@ export class InstanceAiMcpRegistryService {
 			return null;
 		}
 
-		return { credential, data };
+		return { credential, data: data as ICredentialDataDecryptedObject };
 	}
 
 	private async swapCredential(

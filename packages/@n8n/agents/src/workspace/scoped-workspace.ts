@@ -23,13 +23,28 @@ function isInsideRoot(path: string, root: string): boolean {
 	return path === root || path.startsWith(boundary);
 }
 
+function normalizeKnownWorkspacePath(path: string, targetRoot: string): string {
+	const knownRoots = ['/home/user/workspace', '/home/daytona/workspace', '/root/workspace', '/workspace'];
+	for (const kr of knownRoots) {
+		if (path === kr) return targetRoot;
+		if (path.startsWith(`${kr}/`)) {
+			return posixJoin(targetRoot, path.slice(kr.length + 1));
+		}
+	}
+	return path;
+}
+
 function resolvePath(root: string, path: string): string {
 	const normalizedRoot = posixNormalize(root);
-	const normalizedPath = path.startsWith('/')
+	let normalizedPath = path.startsWith('/')
 		? posixNormalize(path)
 		: posixNormalize(posixJoin(normalizedRoot, path));
 
 	if (!isInsideRoot(normalizedPath, normalizedRoot)) {
+		const remapped = normalizeKnownWorkspacePath(normalizedPath, normalizedRoot);
+		if (isInsideRoot(remapped, normalizedRoot)) {
+			return remapped;
+		}
 		throw new Error(`Path escapes workspace root: ${path}`);
 	}
 

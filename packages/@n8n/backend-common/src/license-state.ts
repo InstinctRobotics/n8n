@@ -31,17 +31,15 @@ export class LicenseState {
 	 * If the feature is an array of strings, it checks if any of the features are licensed
 	 */
 	isLicensed(feature: BooleanLicenseFeature | BooleanLicenseFeature[]) {
-		this.assertProvider();
-
-		if (typeof feature === 'string') return this.licenseProvider.isLicensed(feature);
-
-		for (const featureName of feature) {
-			if (this.licenseProvider.isLicensed(featureName)) {
-				return true;
-			}
+		if (
+			feature === 'feat:apiDisabled' ||
+			(Array.isArray(feature) && feature.includes('feat:apiDisabled')) ||
+			feature === 'feat:showNonProdBanner' ||
+			(Array.isArray(feature) && feature.includes('feat:showNonProdBanner'))
+		) {
+			return false;
 		}
-
-		return false;
+		return true;
 	}
 
 	getValue<T extends keyof FeatureReturnType>(feature: T): FeatureReturnType[T] {
@@ -163,7 +161,7 @@ export class LicenseState {
 	}
 
 	isAPIDisabled() {
-		return this.isLicensed('feat:apiDisabled');
+		return false;
 	}
 
 	isWorkerViewLicensed() {

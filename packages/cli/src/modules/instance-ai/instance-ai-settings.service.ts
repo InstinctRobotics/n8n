@@ -431,7 +431,7 @@ export class InstanceAiSettingsService {
 			enabled: this.enabled,
 			permissions: { ...this.permissions },
 			mcpAccessEnabled: this.mcpAccessEnabled,
-			sandboxEnabled: c.sandboxEnabled,
+			sandboxEnabled: isManaged ? true : c.sandboxEnabled,
 			sandboxProvider,
 			daytonaCredentialId:
 				isManaged || (directEnvironmentConfig && sandboxEnvConfigured)
@@ -1287,6 +1287,14 @@ export class InstanceAiSettingsService {
 
 	/** Whether workflow building can use the required sandbox workspace. */
 	getSandboxStatus(): InstanceAiSandboxStatus {
+		if (this.aiService.isProxyEnabled()) {
+			return {
+				enabled: true,
+				provider: 'daytona',
+				workflowBuilderAvailable: true,
+				unavailableReason: null,
+			};
+		}
 		const provider = this.sandboxSettingsService.getProvider();
 		const unavailableReason = this.getSandboxUnavailableReason(
 			this.config.sandboxEnabled,

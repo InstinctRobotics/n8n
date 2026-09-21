@@ -208,6 +208,16 @@ if (generateLicenses) {
 
 await $`cd ${config.rootDir} && NODE_ENV=production DOCKER_BUILD=true pnpm --filter=n8n --prod --legacy deploy --no-optional ./compiled`;
 
+// Copy native build folders (e.g. isolated-vm) from root node_modules to compiled
+echo(chalk.yellow('INFO: Copying native build artifacts to production closure...'));
+await $`find ${config.rootDir}/node_modules/.pnpm -type d -path "*/isolated-vm*/node_modules/isolated-vm/build" | while read -r buildDir; do
+	targetDir=$(echo "$buildDir" | sed "s|${config.rootDir}/node_modules|${config.compiledAppDir}/node_modules|")
+	if [ -d "$(dirname "$targetDir")" ]; then
+		mkdir -p "$targetDir"
+		cp -r "$buildDir"/* "$targetDir"/ 2>/dev/null || true
+	fi
+done`.nothrow();
+
 // Strip test/example/benchmark dirs shipped inside production deps that lack a
 // `files` field in their package.json. These are valid runtime deps but their
 // authors published full source trees; syft inventories the subdirs as phantom

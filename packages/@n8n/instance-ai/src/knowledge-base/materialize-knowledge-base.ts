@@ -20,6 +20,7 @@ import {
 } from './build-templates-index';
 export { KNOWLEDGE_BASE_TEMPLATES_DIR };
 import { extractBuilderTemplatesArchive } from './extract-builder-templates-archive';
+import { getCustomNodesKnowledgeBaseDoc } from '../custom-nodes/custom-node-docs';
 import { computeWorkspaceContentHash } from '../workspace/compute-workspace-content-hash';
 import {
 	loadPrebakedWorkspaceBundle,
@@ -196,6 +197,18 @@ async function addReferenceFilesToKnowledgeBase(
 		referenceEntries.push({
 			id: entry.id,
 			description: entry.description,
+			file: relativeFilePath,
+		});
+	}
+
+	const customNodesDoc = getCustomNodesKnowledgeBaseDoc();
+	if (customNodesDoc) {
+		const relativeFilePath = posixJoin(KNOWLEDGE_BASE_REFERENCE_DIR, 'custom-nodes.md');
+		files.set(posixJoin(rootDir, relativeFilePath), withTrailingNewline(customNodesDoc));
+		referenceEntries.push({
+			id: 'custom-nodes',
+			description:
+				'Custom nodes documentation, operations, schemas, and workflow connection patterns',
 			file: relativeFilePath,
 		});
 	}

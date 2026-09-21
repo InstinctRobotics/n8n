@@ -7,6 +7,7 @@ import {
 	SharedCredentials,
 	ProjectRepository,
 	GLOBAL_OWNER_ROLE,
+	generateNanoId,
 	type OperationContext,
 } from '@n8n/db';
 import { Command } from '@n8n/decorators';
@@ -168,6 +169,17 @@ export class ImportCredentialsCommand extends BaseCommand<z.infer<typeof flagsSc
 		ctx: OperationContext,
 	) {
 		// UsageScope is instance-local state; imports never change it for existing credentials.
+		if (!credential.id && credential.name && credential.type) {
+			const existingByName = await transactionManager.findOne(CredentialsEntity, {
+				where: { name: credential.name, type: credential.type },
+				select: ['id', 'usageScope', 'type'],
+			});
+			if (existingByName) {
+				credential.id = existingByName.id;
+			}
+		}
+		credential.id ??= generateNanoId();
+
 		let existing: Pick<CredentialsEntity, 'id' | 'type' | 'usageScope'> | null = null;
 		if (credential.id) {
 			existing = await transactionManager.findOne(CredentialsEntity, {

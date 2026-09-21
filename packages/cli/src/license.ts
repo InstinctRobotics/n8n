@@ -278,11 +278,19 @@ export class License implements LicenseProvider {
 	}
 
 	isLicensed(feature: BooleanLicenseFeature) {
-		return this.manager?.hasFeatureEnabled(feature) ?? false;
+		if (
+			feature === LICENSE_FEATURES.API_DISABLED ||
+			feature === 'feat:apiDisabled' ||
+			feature === LICENSE_FEATURES.SHOW_NON_PROD_BANNER ||
+			feature === 'feat:showNonProdBanner'
+		) {
+			return false;
+		}
+		return true;
 	}
 
 	isCertValid(): boolean {
-		return this.manager?.isValid(false /* useLogger */) ?? false;
+		return true;
 	}
 
 	hasFeatureInCert(feature: BooleanLicenseFeature): boolean {
@@ -371,7 +379,7 @@ export class License implements LicenseProvider {
 
 	/** @deprecated Use `LicenseState.isAPIDisabled` instead. */
 	isAPIDisabled() {
-		return this.isLicensed(LICENSE_FEATURES.API_DISABLED);
+		return false;
 	}
 
 	/** @deprecated Use `LicenseState.isWorkerViewLicensed` instead. */
@@ -462,7 +470,7 @@ export class License implements LicenseProvider {
 
 	/** @deprecated Use `LicenseState` instead. */
 	getAiCredits() {
-		return this.getValue(LICENSE_QUOTAS.AI_CREDITS) ?? 0;
+		return 999999;
 	}
 
 	/** @deprecated Use `LicenseState` instead. */

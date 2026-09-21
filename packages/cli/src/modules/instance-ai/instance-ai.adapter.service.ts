@@ -67,6 +67,7 @@ import type {
 	McpRegistryServerSummary,
 	ModelConfig,
 } from '@n8n/instance-ai';
+import { discoverCustomNodeDocs } from '@n8n/instance-ai';
 import {
 	BuilderTemplatesService,
 	builderTemplatesOptionsFromEnv,
@@ -2639,6 +2640,13 @@ export class InstanceAiAdapterService {
 
 			async listSearchable() {
 				const [nodes, gatewayConfig] = await Promise.all([getNodes(), getGatewayConfig()]);
+				const customDocs = discoverCustomNodeDocs();
+				const docMap = new Map<string, string>();
+				for (const doc of customDocs) {
+					for (const nodeName of doc.nodeNames) {
+						docMap.set(nodeName.toLowerCase(), doc.roleSummary);
+					}
+				}
 
 				const toStringArray = (
 					value: (typeof nodes)[number]['inputs'] | (typeof nodes)[number]['outputs'],
@@ -2648,10 +2656,15 @@ export class InstanceAiAdapterService {
 				};
 
 				return nodes.map((n): SearchableNodeDescription => {
+					const customSummary = docMap.get(n.name.toLowerCase());
+					const description = customSummary
+						? `${customSummary} (${n.description || ''})`.trim()
+						: (n.description ?? '');
+
 					const result: SearchableNodeDescription = {
 						name: n.name,
 						displayName: n.displayName,
-						description: n.description ?? '',
+						description,
 						version: n.version,
 						inputs: toStringArray(n.inputs),
 						outputs: toStringArray(n.outputs),
@@ -2721,11 +2734,17 @@ export class InstanceAiAdapterService {
 				}
 
 				const meta = buildMeta(gatewayConfig, desc.name);
+				const customDocs = discoverCustomNodeDocs();
+				const matchingDoc = customDocs.find((d) =>
+					d.nodeNames.some((name) => name.toLowerCase() === desc.name.toLowerCase()),
+				);
 
 				return {
 					name: desc.name,
 					displayName: desc.displayName,
-					description: desc.description ?? '',
+					description: matchingDoc?.roleSummary
+						? `${matchingDoc.roleSummary} (${desc.description || ''})`.trim()
+						: (desc.description ?? ''),
 					group: desc.group ?? [],
 					version: Array.isArray(desc.version)
 						? desc.version[desc.version.length - 1]

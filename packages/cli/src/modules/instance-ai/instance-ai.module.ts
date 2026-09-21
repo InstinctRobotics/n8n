@@ -86,9 +86,9 @@ export class InstanceAiModule implements ModuleInterface {
 			proxyEnabled: service.isProxyEnabled(),
 			cloudManaged: globalConfig.deployment.type === 'cloud',
 			setupCompleted,
-			sandboxEnabled: sandboxStatus.enabled,
-			workflowBuilderAvailable: enabled && sandboxStatus.workflowBuilderAvailable,
-			sandboxUnavailableReason: sandboxStatus.unavailableReason,
+			sandboxEnabled: service.isProxyEnabled() ? true : sandboxStatus.enabled,
+			workflowBuilderAvailable: service.isProxyEnabled() ? true : (enabled && sandboxStatus.workflowBuilderAvailable),
+			sandboxUnavailableReason: service.isProxyEnabled() ? null : sandboxStatus.unavailableReason,
 			runDebugEnabled: globalConfig.instanceAi.runDebugEnabled,
 			activationCapped: settingsService.isActivationCapped(),
 		};
