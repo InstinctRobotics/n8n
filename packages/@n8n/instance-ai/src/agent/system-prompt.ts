@@ -7,6 +7,7 @@ import {
 	getSandboxWorkspaceSection,
 	UNTRUSTED_CONTENT_DOCTRINE,
 } from './shared-prompts';
+import { getCustomNodesSystemPromptSection } from '../custom-nodes/custom-node-docs';
 import type { LocalGatewayStatus } from '../types';
 
 interface SystemPromptOptions {
@@ -147,6 +148,7 @@ ${workspaceRoot ? `${getSandboxWorkspaceSection(workspaceRoot)}` : ''}
 ${getProjectScopeSection(projectId)}
 ${SECRET_ASK_GUARDRAIL}
 ${getToolDiscoverySection(toolSearchEnabled, mcpToolSearchEnabled)}
+${getCustomNodesSystemPromptSection(workspaceRoot)}
 ## Communication Style
 
 - Be concise.

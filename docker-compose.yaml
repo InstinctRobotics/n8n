@@ -17,7 +17,7 @@ services:
     command: /bin/sh -c "mkdir -p /home/node/workflows && n8n import:workflow --separate --input=/home/node/workflows || true; n8n start"
 
   n8n-local:
-    image: node:22-bookworm
+    image: node:22-trixie
     restart: always
     network_mode: host
     environment:

@@ -7,11 +7,6 @@ import { sleep } from '@n8n/utils/sleep';
 import { jsonStringify, UserError } from 'n8n-workflow';
 import type { RawData, WebSocket } from 'ws';
 
-declare module 'ws' {
-	interface WebSocket {
-		isAlive?: boolean;
-	}
-}
 
 import { WsStatusCodes } from '@/constants';
 import { EventService } from '@/events/event.service';

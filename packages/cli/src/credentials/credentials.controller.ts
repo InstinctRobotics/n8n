@@ -601,7 +601,7 @@ export class CredentialsController {
 				return;
 			}
 
-			const storedCredential = await this.credentialsFinderService.findCredentialById(credentialId);
+			const storedCredential = await this.credentialsFinderService.findById(credentialId);
 			if (!storedCredential) {
 				return;
 			}

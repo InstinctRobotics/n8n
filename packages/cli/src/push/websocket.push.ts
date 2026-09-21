@@ -4,11 +4,6 @@ import { Service } from '@n8n/di';
 import { UnexpectedError } from 'n8n-workflow';
 import { type RawData, type WebSocket } from 'ws';
 
-declare module 'ws' {
-	interface WebSocket {
-		isAlive?: boolean;
-	}
-}
 
 import { AbstractPush } from './abstract.push';
 

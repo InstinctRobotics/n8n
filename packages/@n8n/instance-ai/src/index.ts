@@ -735,3 +735,12 @@ export type {
 	OversizedAttachmentDetail,
 	OversizedAttachmentReason,
 } from './parsers/validate-attachments';
+
+export {
+	discoverCustomNodeDocs,
+	getCustomNodesSystemPromptSection,
+	getCustomNodesKnowledgeBaseDoc,
+	getCustomExtensionDirectories,
+} from './custom-nodes/custom-node-docs';
+export type { CustomNodeDoc } from './custom-nodes/custom-node-docs';
+
