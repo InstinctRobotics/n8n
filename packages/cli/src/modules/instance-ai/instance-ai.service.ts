@@ -140,6 +140,7 @@ import { InstanceAiBrowserSessionService } from './browser/instance-ai-browser-s
 import { CanvasNodeContextFlagGate } from './canvas-node-context-flag-gate';
 import { dropRejectedAttachmentsFromHistory } from './drop-rejected-attachments';
 import { EvalThreadCredentialAllowlistService } from './eval/thread-credential-allowlist.service';
+import { ClaudeEngine } from './claude-engine';
 import { DurableEventLog } from './event-bus/durable-event-log';
 import { InProcessEventBus } from './event-bus/in-process-event-bus';
 import { InterruptedRunSweeper } from './event-bus/interrupted-run-sweeper';
@@ -789,6 +790,9 @@ export class InstanceAiService {
 	 */
 	private readonly inFlightExecutions = new Set<Promise<unknown>>();
 
+	/** Alternative engine (Claude Code via claude-server); lazily created when N8N_INSTANCE_AI_ENGINE=claude. */
+	private claudeEngine?: ClaudeEngine;
+
 	/**
 	 * Run IDs whose post-stream terminal handling should be skipped when their
 	 * abort fires. Populated by `shutdown()` for runs that were sitting on an
@@ -1365,6 +1369,28 @@ export class InstanceAiService {
 
 		if (pushRef !== undefined) {
 			this.threadPushRef.set(threadId, pushRef);
+		}
+
+		if (ClaudeEngine.isEnabled()) {
+			this.claudeEngine ??= new ClaudeEngine({
+				eventBus: this.eventBus,
+				runState: this.runState,
+				agentMemory: this.agentMemory,
+				logger: this.logger,
+				dataFolder: this.instanceSettings.n8nFolder,
+			});
+			this.trackInFlightExecution(
+				this.claudeEngine.run({
+					user,
+					threadId,
+					runId,
+					message,
+					abortController,
+					messageGroupId,
+					timeZone,
+				}),
+			);
+			return runId;
 		}
 
 		this.startExecuteRun(
