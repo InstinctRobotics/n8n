@@ -1,0 +1,16 @@
+# Override di sviluppo per `rapt dev up n8n`: il servizio si chiama `n8n` come nella release e lo sostituisce con
+# la build locale del fork (compiled/) su node:22, piu' i nodi RAPT compilati di n8n-nodes. Si fonde con il compose di
+# release (le variabili d'ambiente, la rete e i volumi dati restano quelli della release).
+# Prima: pnpm build in questo repo (compiled/) e build di n8n-nodes/custom_nodes (dist/, node_modules/).
+services:
+  n8n:
+    image: node:22-trixie
+    working_dir: /usr/local/lib/node_modules/n8n
+    environment:
+      - N8N_CUSTOM_EXTENSIONS=/home/node/.n8n/custom
+    volumes:
+      - ${HOME}/ws/n8n/compiled:/usr/local/lib/node_modules/n8n
+      - ${HOME}/ws/n8n-nodes/custom_nodes/dist:/home/node/.n8n/custom/n8n-nodes-robot-controller
+      - ${HOME}/ws/n8n-nodes/custom_nodes/node_modules:/home/node/.n8n/custom/node_modules
+      - ${HOME}/ws/n8n/workflows:/home/node/workflows
+    command: /bin/sh -c "mkdir -p /home/node/workflows && node bin/n8n import:workflow --separate --input=/home/node/workflows || true; node bin/n8n start"
