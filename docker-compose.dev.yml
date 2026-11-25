@@ -5,6 +5,8 @@
 services:
   n8n:
     image: node:22-trixie
+    # come il servizio di release: con una rete di compose i due file si fondono male (network_mode e networks si escludono)
+    network_mode: host
     working_dir: /usr/local/lib/node_modules/n8n
     environment:
       - N8N_CUSTOM_EXTENSIONS=/home/node/.n8n/custom
